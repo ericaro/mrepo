@@ -13,8 +13,9 @@ import (
 // some commands DO not print the same output if they are connected to the stdout.
 // besides, you lose the stdin ability.
 func Seq(projects <-chan string, name string, args ...string) {
+	var count int
 	for prj := range projects {
-
+		count++
 		fmt.Printf("\033[00;32m%s\033[00m$ %s %s\n", prj, name, strings.Join(args, " "))
 		cmd := exec.Command(name, args...)
 		cmd.Dir = prj
@@ -23,6 +24,16 @@ func Seq(projects <-chan string, name string, args ...string) {
 			fmt.Printf("Error running '%s %s':\n    %s\n", name, strings.Join(args, " "), err.Error())
 		}
 	}
+	fmt.Printf("Done (\033[00;32m%v\033[00m repositories)\n", count)
+}
+
+func List(projects <-chan string) {
+	var count int
+	for prj := range projects {
+		count++
+		fmt.Printf("\033[00;32m%s\033[00m$ \n", prj)
+	}
+	fmt.Printf("Done (\033[00;32m%v\033[00m repositories)\n", count)
 }
 
 //Concurrent run, in sequences the command on each project
@@ -35,7 +46,9 @@ func Concurrent(projects <-chan string, name string, args ...string) {
 
 	slot := strings.Repeat(" ", 100)
 	fmt.Printf("\033[00;32m%s\033[00m$ %s %s\n", "<for all>", name, strings.Join(args, " "))
+	var count int
 	for prj := range projects {
+		count++
 		fmt.Print("\r    start ")
 		if len(prj) > len(slot) {
 			fmt.Printf("%s ...", prj[0:len(slot)])
@@ -65,4 +78,6 @@ func Concurrent(projects <-chan string, name string, args ...string) {
 	}()
 	waiter.Wait()
 	close(outputer)
+
+	fmt.Printf("Done (\033[00;32m%v\033[00m repositories)\n", count)
 }

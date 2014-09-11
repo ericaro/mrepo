@@ -6,14 +6,16 @@ import (
 )
 
 const (
-	All        VCS = 0
 	Git        VCS = 1
 	Mercurial  VCS = 2
-	Bazaar     VCS = 3
-	Subversion VCS = 4
-	Cvs        VCS = 5
+	Bazaar     VCS = 4
+	Subversion VCS = 8
+	Cvs        VCS = 16
+	All        VCS = 32 - 1
 )
 
+//VCS is an int encoding the vcs type.
+// Git|Mercurial|Cvs (for isntance)
 type VCS int
 
 type Scanner interface {
@@ -38,11 +40,11 @@ func NewScan(workingDir string, vcs VCS) Scanner {
 		wd:   workingDir,
 		prjc: make(chan string),
 		dirnames: map[string]bool{
-			".git": vcs == All || vcs == Git,
-			".hg":  vcs == All || vcs == Mercurial,
-			".bzr": vcs == All || vcs == Bazaar,
-			".svn": vcs == All || vcs == Subversion,
-			"CVS":  vcs == All || vcs == Cvs,
+			".git": (vcs & Git) != 0,
+			".hg":  (vcs & Mercurial) != 0,
+			".bzr": (vcs & Bazaar) != 0,
+			".svn": (vcs & Subversion) != 0,
+			"CVS":  (vcs & Cvs) != 0,
 		},
 	}
 
