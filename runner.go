@@ -36,7 +36,7 @@ func List(projects <-chan string) {
 	fmt.Printf("Done (\033[00;32m%v\033[00m repositories)\n", count)
 }
 
-//Concurrent run, in sequences the command on each project
+//Concurrent run, in sequences the command on each repository
 // because of some commands optimisation, it is not the same as running them async, and then printing the output
 // some commands DO not print the same output if they are connected to the stdout.
 // besides, you lose the stdin ability.

@@ -19,14 +19,14 @@ const (
 type VCS int
 
 type Scanner interface {
-	//find sub projects, and publish them into a chan.
+	//find sub repositories, and publish them into a chan.
 	Find() error
-	// get the chan where projects are published.
+	// get the chan where repositories are published.
 	// Once all project have been found, the chan is closed.
-	Projects() <-chan string
+	Repositories() <-chan string
 }
 
-//scanner object to scan for a directory looking for git projects.
+//scanner object to scan for a directory looking for git repositories.
 type scanner struct {
 	prjc     chan string
 	wd       string
@@ -50,7 +50,7 @@ func NewScan(workingDir string, vcs VCS) Scanner {
 
 }
 
-//Find starts the directory scanning, and publish project found.
+//Find starts the directory scanning, and publish repository found.
 func (s scanner) Find() (err error) {
 	defer close(s.prjc)
 
@@ -61,9 +61,9 @@ func (s scanner) Find() (err error) {
 	return
 }
 
-//Projects exposes the chan of project found as they are found.
+//repositories exposes the chan of repository found as they are found.
 // The chan is closed at the end.
-func (s scanner) Projects() <-chan string {
+func (s scanner) Repositories() <-chan string {
 	return s.prjc
 }
 
@@ -76,12 +76,12 @@ func (s scanner) walkFn(path string, f os.FileInfo, err error) error {
 
 		for dirname, add := range s.dirnames {
 			if f.Name() == dirname {
-				// it's a project file
+				// it's a repository file
 
 				if add {
 					s.prjc <- filepath.Dir(path)
 				}
-				//always skip the project file
+				//always skip the repository file
 				return filepath.SkipDir
 			}
 
