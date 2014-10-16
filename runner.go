@@ -40,22 +40,27 @@ func List(projects <-chan string) {
 // because of some commands optimisation, it is not the same as running them async, and then printing the output
 // some commands DO not print the same output if they are connected to the stdout.
 // besides, you lose the stdin ability.
-func Concurrent(projects <-chan string, name string, args ...string) {
-	outputer := make(chan string)
+func Concurrent(projects <-chan string, shouldPrint bool, outputF Outputer, name string, args ...string) {
+	outputer := make(chan projectRun)
 	var waiter sync.WaitGroup
 
 	slot := strings.Repeat(" ", 100)
-	fmt.Printf("\033[00;32m%s\033[00m$ %s %s\n", "<for all>", name, strings.Join(args, " "))
-	var count int
+	if shouldPrint {
+		fmt.Printf("\033[00;32m%s\033[00m$ %s %s\n", "<for all>", name, strings.Join(args, " "))
+	}
+
 	for prj := range projects {
-		count++
-		fmt.Print("\r    start ")
-		if len(prj) > len(slot) {
-			fmt.Printf("%s ...", prj[0:len(slot)])
-		} else {
-			fmt.Printf("%s ...%s", prj, slot[len(prj):])
-		}
 		waiter.Add(1)
+
+		if shouldPrint {
+			fmt.Print("\r    start ")
+			if len(prj) > len(slot) {
+				fmt.Printf("%s ...", prj[0:len(slot)])
+			} else {
+				fmt.Printf("%s ...%s", prj, slot[len(prj):])
+			}
+		}
+
 		go func(prj string) {
 			defer waiter.Done()
 			cmd := exec.Command(name, args...)
@@ -64,20 +69,20 @@ func Concurrent(projects <-chan string, name string, args ...string) {
 			if err != nil {
 				return
 			}
-			head := fmt.Sprintf("\033[00;32m%s\033[00m$ %s %s\n", prj, name, strings.Join(args, " "))
-			outputer <- head + string(out)
+			// keep
+			//head := fmt.Sprintf("\033[00;32m%s\033[00m$ %s %s\n", prj, name, strings.Join(args, " "))
+			//outputer <- head + string(out)
+			outputer <- projectRun{Name: prj, Cmd: name, Args: args, Result: string(out)}
 		}(prj)
 	}
-	fmt.Printf("\r    all started. waiting for tasks to complete...%s\n\n", slot)
+	if shouldPrint {
+		fmt.Printf("\r    all started. waiting for tasks to complete...%s\n\n", slot)
+	}
 
-	// flush all results (start before all command have finished)
 	go func() {
-		for output := range outputer {
-			fmt.Print(output)
-		}
+		waiter.Wait()
+		close(outputer)
 	}()
-	waiter.Wait()
-	close(outputer)
+	outputF(outputer)
 
-	fmt.Printf("Done (\033[00;32m%v\033[00m repositories)\n", count)
 }

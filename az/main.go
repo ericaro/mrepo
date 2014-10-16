@@ -9,8 +9,14 @@ import (
 
 // the main that run a command on all sub commands
 
-var asynch = flag.Bool("a", false, "Controls the execution mode.\n           '-a' or '-a=true' run commands asynchronously.\n           '-a=false' of by default run commands sequentially.")
+var async = flag.Bool("a", false, "Controls the execution mode.\n           '-a' or '-a=true' run commands asynchronously.\n           '-a=false' of by default run commands sequentially.")
 var list = flag.Bool("l", false, "Dry mode just list the repositories.")
+
+// output selection
+var cat = flag.Bool("cat", false, "concatenate outputs, and print it")
+var sum = flag.Bool("sum", false, "parse each output as a number and print out the total")
+var count = flag.Bool("count", false, "count different outputs, and prints the resulting histogram")
+var digest = flag.Bool("digest", false, "compute the sha1 digest of all outputs")
 
 var help = flag.Bool("h", false, "Print this help.")
 
@@ -62,12 +68,28 @@ OPTIONS:
 		mrepo.List(repositories)
 	} else {
 
-		// based on the async option, exec asynchronously or sequentially.
-		// we cannot just make "seq" a special case of concurrent, since when running sequentially we provide
-		// direct access to the std streams. commands can use stdin, and use term escape codes.
-		// When in async mode, we just can't do that.
-		if *asynch {
-			mrepo.Concurrent(repositories, name, args...)
+		// special outputs implies concurrent mode
+		var special bool = true
+		var outputer mrepo.Outputer = mrepo.Default
+		switch {
+		case *cat:
+			outputer = mrepo.Cat
+		case *sum:
+			outputer = mrepo.Sum
+		case *count:
+			outputer = mrepo.Count
+		case *digest:
+			outputer = mrepo.Digest
+		default:
+			outputer, special = mrepo.Default, false
+		}
+
+		if special || *async { // this implies concurrent
+			// based on the async option, exec asynchronously or sequentially.
+			// we cannot just make "seq" a special case of concurrent, since when running sequentially we provide
+			// direct access to the std streams. commands can use stdin, and use term escape codes.
+			// When in async mode, we just can't do that.
+			mrepo.Concurrent(repositories, !special, outputer, name, args...)
 		} else {
 			mrepo.Seq(repositories, name, args...)
 		}
