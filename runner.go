@@ -56,7 +56,7 @@ func Concurrent(projects <-chan string, name string, args ...string) {
 			fmt.Printf("%s ...%s", prj, slot[len(prj):])
 		}
 		waiter.Add(1)
-		go func() {
+		go func(prj string) {
 			defer waiter.Done()
 			cmd := exec.Command(name, args...)
 			cmd.Dir = prj
@@ -66,7 +66,7 @@ func Concurrent(projects <-chan string, name string, args ...string) {
 			}
 			head := fmt.Sprintf("\033[00;32m%s\033[00m$ %s %s\n", prj, name, strings.Join(args, " "))
 			outputer <- head + string(out)
-		}()
+		}(prj)
 	}
 	fmt.Printf("\r    all started. waiting for tasks to complete...%s\n\n", slot)
 
