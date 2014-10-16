@@ -5,19 +5,6 @@ import (
 	"path/filepath"
 )
 
-const (
-	Git        VCS = 1
-	Mercurial  VCS = 2
-	Bazaar     VCS = 4
-	Subversion VCS = 8
-	Cvs        VCS = 16
-	All        VCS = 32 - 1
-)
-
-//VCS is an int encoding the vcs type.
-// Git|Mercurial|Cvs (for isntance)
-type VCS int
-
 type Scanner interface {
 	//find sub repositories, and publish them into a chan.
 	Find() error
@@ -34,18 +21,11 @@ type scanner struct {
 }
 
 //NewScan creates a scanner
-func NewScan(workingDir string, vcs VCS) Scanner {
+func NewScan(workingDir string) Scanner {
 	return &scanner{
 
 		wd:   workingDir,
 		prjc: make(chan string),
-		dirnames: map[string]bool{
-			".git": (vcs & Git) != 0,
-			".hg":  (vcs & Mercurial) != 0,
-			".bzr": (vcs & Bazaar) != 0,
-			".svn": (vcs & Subversion) != 0,
-			"CVS":  (vcs & Cvs) != 0,
-		},
 	}
 
 }
@@ -73,18 +53,11 @@ func (s scanner) walkFn(path string, f os.FileInfo, err error) error {
 	// it would be something like if it's .git => it's parent is
 
 	if f.IsDir() {
-
-		for dirname, add := range s.dirnames {
-			if f.Name() == dirname {
-				// it's a repository file
-
-				if add {
-					s.prjc <- filepath.Dir(path)
-				}
-				//always skip the repository file
-				return filepath.SkipDir
-			}
-
+		if f.Name() == ".git" {
+			// it's a repository file
+			s.prjc <- filepath.Dir(path)
+			//always skip the repository file
+			return filepath.SkipDir
 		}
 	}
 	return nil
