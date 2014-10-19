@@ -3,23 +3,43 @@
 
 #mrepo - multi repo toolbox
 
-*mrepo* is a programming toolbox to deal with 'workspace' that contains several repositories
+*mrepo* is a programming toolbox to deal with 'workspace' that contains several git repositories
 
 `az`  is a command line utility to execute arbitrary commands on each repository. Typically you want to do:
 
     $ az git fetch
 
-to run `git fetch` on every repository in your workspace.
+to `git fetch` every git repository in your workspace.
 
-Even better, because fetch spent a lot of time waiting for server response, 
+Even better, because `fetch` actually spend a lot of time waiting for server response: 
 
     $ az -a git fetch
 
-to start a 'git fetch' command on each repository asynchronously. It's 10x faster.
+that will `git fetch`  on each repository, but in parallel. It's 10x faster.
+
 
 Of course you can run any command you want
 
     $ az mkdir -p src/main/java
+
+
+Sometimes you need to run some basic statistics on those results:
+
+    git rev-parse --abbrev-ref HEAD
+
+will give you the current branch
+
+But what about all branches, in the workspace ?
+
+
+    $ az -count git rev-parse --abbrev-ref HEAD
+      24 : dev
+      12 : master
+      ___________
+      36
+
+
+
 
 # Details
 
@@ -35,7 +55,7 @@ Command are executed in the context of each repository (the current working dir 
 Commands can be executed *sequentially* with direct access to stdin, stdout stderr. Command can ask questions, and print using color
 Commands can be executed *asynchronously*  with buffered access to stdout and stderr.
 
-#statistics 
+# Statistics 
 
 Commands results can be analyzed through a few simple "aggregators"
 
@@ -46,7 +66,6 @@ Commands results can be analyzed through a few simple "aggregators"
 
 
 This set of "outputs" is very suitable with some git command:
-
 The sha1 of all sha1: just print the each repository sha1, and compute the resulting one:
 
     $ az -digest git rev-parse --verify HEAD
@@ -74,6 +93,7 @@ Check the current repartition of branches
       12 : master
       ___________
       36
+
 
 # Installation
 

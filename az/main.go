@@ -70,7 +70,7 @@ OPTIONS:
 
 		// special outputs implies concurrent mode
 		var special bool = true
-		var outputer mrepo.Outputer = mrepo.Default
+		var outputer mrepo.PostProcessor = mrepo.Default
 		switch {
 		case *cat:
 			outputer = mrepo.Cat

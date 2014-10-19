@@ -27,6 +27,7 @@ func Seq(projects <-chan string, name string, args ...string) {
 	fmt.Printf("Done (\033[00;32m%v\033[00m repositories)\n", count)
 }
 
+//List just count and print all directories.
 func List(projects <-chan string) {
 	var count int
 	for prj := range projects {
@@ -40,15 +41,16 @@ func List(projects <-chan string) {
 // because of some commands optimisation, it is not the same as running them async, and then printing the output
 // some commands DO not print the same output if they are connected to the stdout.
 // besides, you lose the stdin ability.
-func Concurrent(projects <-chan string, shouldPrint bool, outputF Outputer, name string, args ...string) {
-	outputer := make(chan projectRun)
-	var waiter sync.WaitGroup
+func Concurrent(projects <-chan string, shouldPrint bool, outputF PostProcessor, name string, args ...string) {
 
-	slot := strings.Repeat(" ", 100)
+	var slot string // a reserved space to print and delete messages
 	if shouldPrint {
+		slot = strings.Repeat(" ", 80)
 		fmt.Printf("\033[00;32m%s\033[00m$ %s %s\n", "<for all>", name, strings.Join(args, " "))
 	}
 
+	outputer := make(chan execution)
+	var waiter sync.WaitGroup
 	for prj := range projects {
 		waiter.Add(1)
 
@@ -72,7 +74,7 @@ func Concurrent(projects <-chan string, shouldPrint bool, outputF Outputer, name
 			// keep
 			//head := fmt.Sprintf("\033[00;32m%s\033[00m$ %s %s\n", prj, name, strings.Join(args, " "))
 			//outputer <- head + string(out)
-			outputer <- projectRun{Name: prj, Cmd: name, Args: args, Result: string(out)}
+			outputer <- execution{Name: prj, Cmd: name, Args: args, Result: string(out)}
 		}(prj)
 	}
 	if shouldPrint {
