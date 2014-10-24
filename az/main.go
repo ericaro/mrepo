@@ -18,11 +18,15 @@ var sum = flag.Bool("sum", false, "parse each output as a number and print out t
 var count = flag.Bool("count", false, "count different outputs, and prints the resulting histogram")
 var digest = flag.Bool("digest", false, "compute the sha1 digest of all outputs")
 
+// missing an outputer that takes care of "error codes"
+
+var replay = flag.Bool("extract", false, "extract git info to rebuild the same structure.")
+
 var help = flag.Bool("h", false, "Print this help.")
 
 func main() {
 	flag.Parse()
-	if flag.NArg() == 0 || *help {
+	if (flag.NArg() == 0 && !*replay) || *help {
 		fmt.Printf(`USAGE %s [-options] <command> <args...>
 			
 DESCRIPTION:
@@ -66,6 +70,8 @@ OPTIONS:
 
 	if *list {
 		mrepo.List(repositories)
+	} else if *replay {
+		mrepo.Replay(repositories, wd)
 	} else {
 
 		// special outputs implies concurrent mode

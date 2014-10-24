@@ -1,11 +1,15 @@
 package mrepo
 
 import (
+	"bytes"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
+	"text/tabwriter"
 )
 
 //Seq run, in sequences the command on each project
@@ -35,6 +39,45 @@ func List(projects <-chan string) {
 		fmt.Printf("\033[00;32m%s\033[00m$ \n", prj)
 	}
 	fmt.Printf("Done (\033[00;32m%v\033[00m repositories)\n", count)
+}
+
+//Replay generate an output able to "replay" the current structure.
+// it's a makefile representing the current directory tree, and the way to rebuild it.
+// for instance
+// tree: dir1 dir2
+// dir1:   ; git clone git@github.com/src1 -b prod $@
+// dir2:   ; git clone git@github.com/src2 -b dev  $@
+func Replay(projects <-chan string, wd string) {
+	var topRule bytes.Buffer
+	var prjRule bytes.Buffer
+	w := tabwriter.NewWriter(&prjRule, 3, 8, 3, ' ', 0)
+
+	for prj := range projects {
+		branch, err := GitBranch(prj)
+		if err != nil {
+			log.Fatalf("err getting branch %s", err.Error())
+		}
+		origin, err := GitRemoteOrigin(prj)
+		if err != nil {
+			log.Fatalf("err getting origin %s", err.Error())
+		}
+		rel, err := filepath.Rel(wd, prj)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "prj does not appear to be in the current directory: %s %s", wd, prj)
+		} else if rel != "." {
+			fmt.Fprintf(w, "%s:\t;git clone\t%q\t-b %q\t$@\n", rel, origin, branch)
+			fmt.Fprintf(&topRule, "%s ", rel) // mark the prj as a dependency
+		}
+
+	}
+	w.Flush()
+	fmt.Printf(`
+tree: %s
+%s`,
+		string(topRule.Bytes()),
+		string(prjRule.Bytes()),
+	)
+
 }
 
 //Concurrent run, in sequences the command on each repository
