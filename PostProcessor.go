@@ -13,11 +13,11 @@ import (
 )
 
 // PostProcessor is a function that should process executions from the given chan
-type PostProcessor func(<-chan execution)
+type PostProcessor func(<-chan Execution)
 
-//execution is the result of a command execution on a given project
+//Execution is the result of a command Execution on a given project
 // You get the project's name (the full path to the repository )
-type execution struct {
+type Execution struct {
 	Name   string
 	Rel    string // relative path to the root
 	Cmd    string
@@ -26,13 +26,13 @@ type execution struct {
 }
 
 //Base returns the Base name for the project
-func (e *execution) Base() string {
+func (e *Execution) Base() string {
 	return filepath.Base(e.Name)
 
 }
 
 //Default PostProcessor: print a colored header and the result
-func Default(source <-chan execution) {
+func DefaultPostProcessor(source <-chan Execution) {
 	var count int
 	for x := range source {
 		count++
@@ -44,15 +44,15 @@ func Default(source <-chan execution) {
 }
 
 //Cat PostProcessor `cat` together all outputs.
-func Cat(source <-chan execution) {
+func Cat(source <-chan Execution) {
 	for x := range source {
 		fmt.Print(x.Result)
 	}
 }
 
-//Sum PostProcessor try to parse the execution output and sum it up.
+//Sum PostProcessor try to parse the Execution output and sum it up.
 // if it can parse it as a number it uses `NaN`.
-func Sum(source <-chan execution) {
+func Sum(source <-chan Execution) {
 	var total float64 = 0
 	w := tabwriter.NewWriter(os.Stdout, 6, 8, 3, '\t', 0)
 
@@ -73,7 +73,7 @@ func Sum(source <-chan execution) {
 }
 
 //Count PostProcessor that count unique outputs
-func Count(source <-chan execution) {
+func Count(source <-chan Execution) {
 	hist := make(map[string]int)
 	var count int
 	for x := range source {
@@ -95,10 +95,10 @@ func Count(source <-chan execution) {
 
 //Digest PostProcessor computes the digest of all outputs.
 // Outputs are trimed of whitespaces. (` \n\r\t`)
-func Digest(source <-chan execution) {
+func Digest(source <-chan Execution) {
 
 	//we are going to sort prj by name first
-	all := make([]execution, 0, 100)
+	all := make([]Execution, 0, 100)
 	//first flush the source and store projects
 	for x := range source {
 		all = append(all, x)
@@ -113,8 +113,8 @@ func Digest(source <-chan execution) {
 	fmt.Printf("%x\n", h.Sum(nil))
 }
 
-//byName to sort any slice of execution by their Name !
-type byName []execution
+//byName to sort any slice of Execution by their Name !
+type byName []Execution
 
 func (a byName) Len() int           { return len(a) }
 func (a byName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }

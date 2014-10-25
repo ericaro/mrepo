@@ -40,7 +40,7 @@ func (s scanner) Find() (err error) {
 	return filepath.Walk(s.wd, f)
 }
 
-//repositories exposes the chan of repository found as they are found.
+//Repositories exposes the chan of repository.
 // The chan is closed at the end.
 func (s scanner) Repositories() <-chan string {
 	return s.prjc

@@ -47,6 +47,7 @@ OPTIONS:
 	if err != nil {
 		fmt.Printf("Error, cannot determine the current directory. %s\n", err.Error())
 	}
+	executor := mrepo.NewExecutor(wd)
 	// parses the remaining args in order to pass them to the underlying process
 	args := make([]string, 0)
 	if flag.NArg() > 1 {
@@ -67,7 +68,7 @@ OPTIONS:
 
 	if *list {
 		//for now there is only one way to print dependencies
-		mrepo.List(repositories, wd)
+		executor.List(repositories)
 	} else {
 		// select the output mode
 
@@ -77,18 +78,18 @@ OPTIONS:
 		// Therefore, selecting the output mode imply selecting "special"= true|false
 		// and the PostProcessor function
 		var special bool = true
-		var outputer mrepo.PostProcessor
+
 		switch {
 		case *cat:
-			outputer = mrepo.Cat
+			executor.PostProcessor = mrepo.Cat
 		case *sum:
-			outputer = mrepo.Sum
+			executor.PostProcessor = mrepo.Sum
 		case *count:
-			outputer = mrepo.Count
+			executor.PostProcessor = mrepo.Count
 		case *digest:
-			outputer = mrepo.Digest
+			executor.PostProcessor = mrepo.Digest
 		default:
-			outputer, special = mrepo.Default, false
+			special = false
 		}
 
 		if special || *async { // this implies concurrent
@@ -96,9 +97,9 @@ OPTIONS:
 			// we cannot just make "seq" a special case of concurrent, since when running sequentially we provide
 			// direct access to the std streams. commands can use stdin, and use term escape codes.
 			// When in async mode, we just can't do that.
-			mrepo.Concurrent(repositories, wd, !special, outputer, name, args...)
+			executor.Concurrent(repositories, name, args...)
 		} else {
-			mrepo.Seq(repositories, wd, name, args...)
+			executor.Seq(repositories, name, args...)
 		}
 	}
 
