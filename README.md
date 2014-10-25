@@ -3,98 +3,149 @@
 
 #mrepo - multi repo toolbox
 
+What is mrepo for ?
+
   - `mrepo` is a programming library to deal with 'workspaces' that contains several git repositories, called 'subrepository'
   - `az` is a command line tool, to run arbitrary command, on each subrepository.
-  - `git-deps` is a command line tool, to read all subrepository path, remote, branch. Enough to recreate them, in fact.
+  - `git-deps` is a command line tool, to read all subrepositories path, remote and branch. Enough to recreate them, in fact.
 
 
 ## `az`
 
-`az`  is a command line utility to execute arbitrary commands on each repository. Typically you want to do:
+### simple command
 
-    $ az git fetch
+Run a simple git command on each subrepository. 
 
-to `git fetch` every subrepository.
+    az <command>
 
-Even better, because `fetch` actually spend a lot of time waiting for server response: 
+to run `<command>` on each subrepository
+
+For instance:
+
+    $ az git status -s
+
+
+### simple async command
+
+Run each command in parallel:
+
+    az -a <command>
+
+For instance:
 
     $ az -a git fetch
 
-that will `git fetch`  on each repository, but in parallel. It's 10x faster.
+It's 10x faster, because `git fetch` spend lot of time waiting.
+
+*caveat*:
+Command executed in *async* mode cannot be interactive, and cannot print in coloring mode neither.
 
 
-Of course you can run any command you want
-
-    $ az mkdir -p src/main/java
+### summary command
 
 
-### sync or async ?
+Collect each command response and print out a *summary* of those response.
 
-The `-a` option selects the `asynchronous` mode.
+ - *cat*   : outputs are just con`cat`enated together.
+ - *sum*   : outputs are interpreted as numbers, and they are added.
+ - *count* : count different outputs
+ - *digest*: compute the sha1 of all outputs. subrepositories are sorted in aphabetical order of project names
 
-  - In `sync` mode:
-    + Commands are executed *sequentially*. 
-    + Commands have direct access to stdin, stdout stderr, and therefore, can prompt for questions, and print using color
-  - In `async` mode:
-    + Commands are executed *asynchronously*.
-    + Commands cannot run in interactive mode, but they usually operates faster.
+*caveat*: like for `-a` option, when using summary options, commands cannot be interactive.
 
-The `async` mode is activate by `-a` option, or if you use a *statistics aggregator* like ( `-cat`, or `-count`)
+## git-deps
 
+Find all subrepositories of the current working dir, and extract their:
 
-### statistics
+  - path
+  - remote: git remote url `git config --get remote.origin.url`
+  - branch: the current branch : `git rev-parse --abbrev-ref HEAD`
 
-Sometimes you need to run some basic statistics on those results:
+By default, it prints this result.
 
-    git rev-parse --abbrev-ref HEAD
+With `-makefile` option, it prints this result in a `Makefile` format.
 
-will give you the current branch
+    <path>: ; git clone <remote> -b <branch> $@
 
-But what about all branches, in the workspace ?
+It is then easy to reproduce your workspace elsewhere ( other developpers, CI, build machine)
 
+# Examples
+
+## branch distribution
+
+The git command:
+
+    $ git rev-parse --abbrev-ref HEAD
+
+will give you the current branch.
+
+But what the branches distribution in the workspace ?
 
     $ az -count git rev-parse --abbrev-ref HEAD
-      24 : dev
-      12 : master
+      24   dev
+      12   master
       ___________
-      36
+      36   Total
 
-Commands results can be analyzed through a few simple "aggregators"
+Explanations:
+In the current workspace, there are `36` subrepositories.
+There have been `36`  responses
+`24` were `dev` and `12` were `master`.
 
- - *cat* : outputs are just `cat` to the output.
- - *sum* : outputs are considered as numbers, and they are sum up.
- - *count*: count differents outputs, and print the result and the count.
- - *digest*: the sha1 of all outputs, in the aphabetical order of project names, is computed and printed.
+## sha1 of all sha1
 
+The command:
 
-This set of "outputs" is very suitable with some git command:
-The sha1 of all sha1: just print the each repository sha1, and compute the resulting one:
+    $ git rev-parse HEAD
 
-    $ az -digest git rev-parse --verify HEAD
+will return HEAD's sha1.
 
-Number of commit ahead or behind
+How can I compute a new sha1 that depends on each subrepository ?
+
+    $ az -digest git rev-parse HEAD
+    bb502cc5594cf1dd2f175942dfe2cdfea4961048
+
+Explanation:
+
+`az` will execute `git rev-parse HEAD` on each subrepository, in a deterministic order (alphabetically by path).
+a new message is build by concatenating all outputs together, and its sha1 is computed.
+
+You have a version number for the workspace that depends on each subrepository version.
+
+## counting commits
+
+This git command:
+
+    $ git  rev-list --count  HEAD...origin/master
+
+count the number of commit between HEAD and origin/master (telling you how much behind you are).
+
+What about all repositories ?
 
     $ az -sum git  rev-list --count  dev...origin/dev
+        0     foo
+        4     bar
+        2     baz
+        __________
+        30  
 
-See all untracked file in all the repositories (to see if one need to be committed)
+## working with a CI
 
-    $ az -cat git ls-files --exclude-standard --others
+Generate a Dependencyfile
 
-  
-    $ az -cat git status --porcelain
-      M  README.md
-       M az/main.go
-       M runner.go
-      ?? DesignNotes.md
+    $ git deps -makefile > Dependencyfile
+    $ git add Dependencyfile
+    $ git commit -m "Added Dependencyfile for my CI"
 
+On the CI side, you don't just need a pull on the main repository, you also need to clone new repositories:
 
-Check the current repartition of branches
+    $ make -f Dependencyfile tree
+    $ az -a git fetch
+    $ az git merge --ff-only
 
-    $ az -count git rev-parse --abbrev-ref HEAD
-      24 : dev
-      12 : master
-      ___________
-      36
+The first statement will clone missing subrepositories.
+The second will fetch all new stuff (asynchronously, so really fast, no possible conflict)
+The third, will apply changes (fast forward only (this should be the case for a CI))
 
 
 # Installation

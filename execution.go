@@ -12,6 +12,9 @@ import (
 	"text/tabwriter"
 )
 
+// PostProcessor is a function that should process executions from the given chan
+type PostProcessor func(<-chan execution)
+
 //execution is the result of a command execution on a given project
 // You get the project's name (the full path to the repository )
 type execution struct {
@@ -27,9 +30,6 @@ func (e *execution) Base() string {
 	return filepath.Base(e.Name)
 
 }
-
-// PostProcessor is a function that should process executions from the given chan
-type PostProcessor func(<-chan execution)
 
 //Default PostProcessor: print a colored header and the result
 func Default(source <-chan execution) {
@@ -66,8 +66,8 @@ func Sum(source <-chan execution) {
 		total += res
 	}
 	w.Flush()
-	fmt.Println("  __________")
-	fmt.Fprintf(w, "\t%v\t%s\n", total, "")
+	fmt.Println("")
+	fmt.Fprintf(w, "\t%v\t%s\n", total, "Total")
 	w.Flush()
 
 }
@@ -87,7 +87,7 @@ func Count(source <-chan execution) {
 		fmt.Fprintf(w, "\033[00;32m%v\t\033[00m%s\n", v, k)
 	}
 	w.Flush()
-	fmt.Printf("________________\n")
+	fmt.Println("")
 	fmt.Fprintf(w, "\033[00;32m%v\t\033[00m%s\n", count, "Total")
 	w.Flush()
 

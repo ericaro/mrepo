@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+//GitBranch extract the current branch name (HEAD)
 func GitBranch(prj string) (branch string, err error) {
 	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
 	cmd.Dir = prj
@@ -16,7 +17,9 @@ func GitBranch(prj string) (branch string, err error) {
 	return result, nil
 }
 
-func GitRemoteOrigin(prj string) (branch string, err error) {
+//GitRemoteOrigin returns the current remote.origin.url
+// if there is no "origin" remote, then an error is returned.
+func GitRemoteOrigin(prj string) (origin string, err error) {
 	cmd := exec.Command("git", "config", "--get", "remote.origin.url")
 	cmd.Dir = prj
 	out, err := cmd.CombinedOutput()
