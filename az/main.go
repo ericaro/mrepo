@@ -19,6 +19,7 @@ var count = flag.Bool("count", false, "count different outputs, and prints the r
 var digest = flag.Bool("digest", false, "compute the sha1 digest of all outputs")
 
 // missing an outputer that takes care of "error codes"
+
 var help = flag.Bool("h", false, "Print this help.")
 
 func main() {
@@ -46,7 +47,7 @@ OPTIONS:
 	if err != nil {
 		fmt.Printf("Error, cannot determine the current directory. %s\n", err.Error())
 	}
-
+	// parses the remaining args in order to pass them to the underlying process
 	args := make([]string, 0)
 	if flag.NArg() > 1 {
 		args = flag.Args()[1:]
@@ -55,7 +56,6 @@ OPTIONS:
 
 	scanner := mrepo.NewScan(wd)
 	go func() {
-
 		err = scanner.Find()
 		if err != nil {
 			fmt.Printf("Error scanning current directory (%s). %s", wd, err.Error())
@@ -69,10 +69,15 @@ OPTIONS:
 		//for now there is only one way to print dependencies
 		mrepo.List(repositories, wd)
 	} else {
+		// select the output mode
 
-		// special outputs implies concurrent mode
+		//again, passing the stdin, and stdout to the subprocess prevent: async, and ability to collect the outputs
+		// for special outputers we need to collect outputs, so the 'special' var.
+		// special => concurrent mode (because we need to collect outputs)
+		// Therefore, selecting the output mode imply selecting "special"= true|false
+		// and the PostProcessor function
 		var special bool = true
-		var outputer mrepo.PostProcessor = mrepo.Default
+		var outputer mrepo.PostProcessor
 		switch {
 		case *cat:
 			outputer = mrepo.Cat
@@ -91,9 +96,9 @@ OPTIONS:
 			// we cannot just make "seq" a special case of concurrent, since when running sequentially we provide
 			// direct access to the std streams. commands can use stdin, and use term escape codes.
 			// When in async mode, we just can't do that.
-			mrepo.Concurrent(repositories, !special, outputer, name, args...)
+			mrepo.Concurrent(repositories, wd, !special, outputer, name, args...)
 		} else {
-			mrepo.Seq(repositories, name, args...)
+			mrepo.Seq(repositories, wd, name, args...)
 		}
 	}
 

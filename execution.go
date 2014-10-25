@@ -16,6 +16,7 @@ import (
 // You get the project's name (the full path to the repository )
 type execution struct {
 	Name   string
+	Rel    string // relative path to the root
 	Cmd    string
 	Args   []string
 	Result string
@@ -36,7 +37,7 @@ func Default(source <-chan execution) {
 	for x := range source {
 		count++
 		// default printing
-		fmt.Printf("\033[00;32m%s\033[00m$ %s %s \n %s", x.Name, x.Cmd, strings.Join(x.Args, " "), x.Result)
+		fmt.Printf("\033[00;32m%s\033[00m$ %s %s \n %s", x.Rel, x.Cmd, strings.Join(x.Args, " "), x.Result)
 	}
 
 	fmt.Printf("Done (\033[00;32m%v\033[00m repositories)\n", count)
@@ -61,7 +62,7 @@ func Sum(source <-chan execution) {
 		if err != nil {
 			res = math.NaN()
 		}
-		fmt.Fprintf(w, "\t%v\t%s\n", res, x.Base())
+		fmt.Fprintf(w, "\t%v\t%s\n", res, x.Rel)
 		total += res
 	}
 	w.Flush()

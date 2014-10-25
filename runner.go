@@ -14,11 +14,15 @@ import (
 // because of some commands optimisation, it is not the same as running them async, and then printing the output
 // some commands DO not print the same output if they are connected to the stdout.
 // besides, you lose the stdin ability.
-func Seq(projects <-chan string, name string, args ...string) {
+func Seq(projects <-chan string, wd, name string, args ...string) {
 	var count int
 	for prj := range projects {
 		count++
-		fmt.Printf("\033[00;32m%s\033[00m$ %s %s\n", prj, name, strings.Join(args, " "))
+		rel, err := filepath.Rel(wd, prj)
+		if err != nil {
+			log.Fatalf("prj does not appear to be in the current directory %s", err.Error())
+		}
+		fmt.Printf("\033[00;32m%s\033[00m$ %s %s\n", rel, name, strings.Join(args, " "))
 		cmd := exec.Command(name, args...)
 		cmd.Dir = prj
 		cmd.Stderr, cmd.Stdout, cmd.Stdin = os.Stderr, os.Stdout, os.Stdin
@@ -47,7 +51,7 @@ func List(projects <-chan string, wd string) {
 // because of some commands optimisation, it is not the same as running them async, and then printing the output
 // some commands DO not print the same output if they are connected to the stdout.
 // besides, you lose the stdin ability.
-func Concurrent(projects <-chan string, shouldPrint bool, outputF PostProcessor, name string, args ...string) {
+func Concurrent(projects <-chan string, wd string, shouldPrint bool, outputF PostProcessor, name string, args ...string) {
 
 	var slot string // a reserved space to print and delete messages
 	if shouldPrint {
@@ -77,10 +81,14 @@ func Concurrent(projects <-chan string, shouldPrint bool, outputF PostProcessor,
 			if err != nil {
 				return
 			}
+			rel, err := filepath.Rel(wd, prj)
+			if err != nil {
+				log.Fatalf("prj does not appear to be in the current directory %s", err.Error())
+			}
 			// keep
 			//head := fmt.Sprintf("\033[00;32m%s\033[00m$ %s %s\n", prj, name, strings.Join(args, " "))
 			//outputer <- head + string(out)
-			outputer <- execution{Name: prj, Cmd: name, Args: args, Result: string(out)}
+			outputer <- execution{Name: prj, Rel: rel, Cmd: name, Args: args, Result: string(out)}
 		}(prj)
 	}
 	if shouldPrint {

@@ -38,7 +38,6 @@ func (s scanner) Find() (err error) {
 	// for backward compatibility (with 1.0.3) I can't call a method
 	f := func(path string, f os.FileInfo, err error) error { return s.walkFn(path, f, err) }
 	return filepath.Walk(s.wd, f)
-	return
 }
 
 //repositories exposes the chan of repository found as they are found.

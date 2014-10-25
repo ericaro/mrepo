@@ -3,13 +3,18 @@
 
 #mrepo - multi repo toolbox
 
-*mrepo* is a programming toolbox to deal with 'workspace' that contains several git repositories
+  - `mrepo` is a programming library to deal with 'workspaces' that contains several git repositories, called 'subrepository'
+  - `az` is a command line tool, to run arbitrary command, on each subrepository.
+  - `git-deps` is a command line tool, to read all subrepository path, remote, branch. Enough to recreate them, in fact.
+
+
+## `az`
 
 `az`  is a command line utility to execute arbitrary commands on each repository. Typically you want to do:
 
     $ az git fetch
 
-to `git fetch` every git repository in your workspace.
+to `git fetch` every subrepository.
 
 Even better, because `fetch` actually spend a lot of time waiting for server response: 
 
@@ -22,6 +27,22 @@ Of course you can run any command you want
 
     $ az mkdir -p src/main/java
 
+
+### sync or async ?
+
+The `-a` option selects the `asynchronous` mode.
+
+  - In `sync` mode:
+    + Commands are executed *sequentially*. 
+    + Commands have direct access to stdin, stdout stderr, and therefore, can prompt for questions, and print using color
+  - In `async` mode:
+    + Commands are executed *asynchronously*.
+    + Commands cannot run in interactive mode, but they usually operates faster.
+
+The `async` mode is activate by `-a` option, or if you use a *statistics aggregator* like ( `-cat`, or `-count`)
+
+
+### statistics
 
 Sometimes you need to run some basic statistics on those results:
 
@@ -37,25 +58,6 @@ But what about all branches, in the workspace ?
       12 : master
       ___________
       36
-
-
-
-
-# Details
-
-`az` scan recursively all directories in the current working directory hierarchy.
-if a directory's name is ".git" then
-
-  1 it is skipped
-  2 it's parent dir is considered to be a 'repository'.
-
-Command are executed in the context of each repository (the current working dir is the repository)
-
-
-Commands can be executed *sequentially* with direct access to stdin, stdout stderr. Command can ask questions, and print using color
-Commands can be executed *asynchronously*  with buffered access to stdout and stderr.
-
-# Statistics 
 
 Commands results can be analyzed through a few simple "aggregators"
 
@@ -97,10 +99,11 @@ Check the current repartition of branches
 
 # Installation
 
+If you have [Go](http://golang.org) installed 
+
     go get github.com/ericaro/mrepo
 
-you will get in `$GOPATH/bin` the 'az' command. try it with `az -h`
-
+you will get in `$GOPATH/bin` the `az`, and `git-deps` commands. try them with `az -h` or `git deps -h`
 
 # License
 
