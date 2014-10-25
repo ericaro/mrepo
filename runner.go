@@ -1,7 +1,6 @@
 package mrepo
 
 import (
-	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -9,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"text/tabwriter"
 )
 
 //Seq run, in sequences the command on each project
@@ -32,52 +30,17 @@ func Seq(projects <-chan string, name string, args ...string) {
 }
 
 //List just count and print all directories.
-func List(projects <-chan string) {
+func List(projects <-chan string, wd string) {
 	var count int
 	for prj := range projects {
 		count++
-		fmt.Printf("\033[00;32m%s\033[00m$ \n", prj)
-	}
-	fmt.Printf("Done (\033[00;32m%v\033[00m repositories)\n", count)
-}
-
-//Replay generate an output able to "replay" the current structure.
-// it's a makefile representing the current directory tree, and the way to rebuild it.
-// for instance
-// tree: dir1 dir2
-// dir1:   ; git clone git@github.com/src1 -b prod $@
-// dir2:   ; git clone git@github.com/src2 -b dev  $@
-func Replay(projects <-chan string, wd string) {
-	var topRule bytes.Buffer
-	var prjRule bytes.Buffer
-	w := tabwriter.NewWriter(&prjRule, 3, 8, 3, ' ', 0)
-
-	for prj := range projects {
-		branch, err := GitBranch(prj)
-		if err != nil {
-			log.Fatalf("err getting branch %s", err.Error())
-		}
-		origin, err := GitRemoteOrigin(prj)
-		if err != nil {
-			log.Fatalf("err getting origin %s", err.Error())
-		}
 		rel, err := filepath.Rel(wd, prj)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "prj does not appear to be in the current directory: %s %s", wd, prj)
-		} else if rel != "." {
-			fmt.Fprintf(w, "%s:\t;git clone\t%q\t-b %q\t$@\n", rel, origin, branch)
-			fmt.Fprintf(&topRule, "%s ", rel) // mark the prj as a dependency
+			rel = prj // uses the absolute path in this case
 		}
-
+		fmt.Printf("\033[00;32m%s\033[00m$ \n", rel)
 	}
-	w.Flush()
-	fmt.Printf(`
-tree: %s
-%s`,
-		string(topRule.Bytes()),
-		string(prjRule.Bytes()),
-	)
-
+	fmt.Printf("Done (\033[00;32m%v\033[00m repositories)\n", count)
 }
 
 //Concurrent run, in sequences the command on each repository
@@ -130,4 +93,43 @@ func Concurrent(projects <-chan string, shouldPrint bool, outputF PostProcessor,
 	}()
 	outputF(outputer)
 
+}
+
+func Dependencies(sources <-chan string, wd string, dep Depender) {
+	dependencies := make(chan dependency)
+	var waiter sync.WaitGroup
+
+	for prj := range sources {
+		waiter.Add(1)
+		go func(prj string) {
+			defer waiter.Done()
+
+			branch, err := GitBranch(prj)
+			if err != nil {
+				log.Fatalf("err getting branch %s", err.Error())
+			}
+			origin, err := GitRemoteOrigin(prj)
+			if err != nil {
+				log.Fatalf("err getting origin %s", err.Error())
+			}
+			rel, err := filepath.Rel(wd, prj)
+			if err != nil {
+				log.Fatalf("prj does not appear to be in the current directory %s", err.Error())
+			}
+			if rel != "." {
+				dependencies <- dependency{
+					wd:     wd,
+					rel:    rel,
+					remote: origin,
+					branch: branch,
+				}
+			}
+		}(prj)
+		//wait and close in a remote so that the main thread ends with the end of processing
+	}
+	go func() {
+		waiter.Wait()
+		close(dependencies)
+	}()
+	dep(dependencies)
 }
