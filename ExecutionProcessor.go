@@ -37,7 +37,7 @@ func DefaultPostProcessor(source <-chan Execution) {
 	for x := range source {
 		count++
 		// default printing
-		fmt.Printf("\033[00;32m%s\033[00m$ %s %s \n %s", x.Rel, x.Cmd, strings.Join(x.Args, " "), x.Result)
+		fmt.Printf("\033[00;32m%s\033[00m$ %s %s \n%s\n", x.Rel, x.Cmd, strings.Join(x.Args, " "), x.Result)
 	}
 
 	fmt.Printf("Done (\033[00;32m%v\033[00m repositories)\n", count)

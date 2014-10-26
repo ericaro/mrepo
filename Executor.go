@@ -25,7 +25,6 @@ import (
 type Executor struct {
 	wd string //current working dir
 	ExecutionProcessor
-	DependencyProcessor
 	*scanner
 	*dependencyParser
 }
@@ -33,11 +32,10 @@ type Executor struct {
 //NewExecutor creates a new Executor for a working dir.
 func NewExecutor(wd string) *Executor {
 	return &Executor{
-		wd:                  wd,
-		ExecutionProcessor:  DefaultPostProcessor, //default postprocessor
-		DependencyProcessor: DepPrinter,           //default depender
-		scanner:             newScan(wd),
-		dependencyParser:    &dependencyParser{wd: wd, post: Cloner},
+		wd:                 wd,
+		ExecutionProcessor: DefaultPostProcessor, //default postprocessor
+		scanner:            newScan(wd),
+		dependencyParser:   &dependencyParser{wd: wd},
 	}
 }
 
@@ -91,7 +89,9 @@ func (x *Executor) Exec(command string, args ...string) {
 			// keep
 			//head := fmt.Sprintf("\033[00;32m%s\033[00m$ %s %s\n", sub, command, strings.Join(args, " "))
 			//executions <- head + string(out)
-			executions <- Execution{Name: sub, Rel: rel, Cmd: command, Args: args, Result: string(out)}
+			result := string(out)
+			result = strings.Trim(result, DefaultTrimCut)
+			executions <- Execution{Name: sub, Rel: rel, Cmd: command, Args: args, Result: result}
 		}(sub)
 	}
 
@@ -104,19 +104,16 @@ func (x *Executor) Exec(command string, args ...string) {
 }
 
 //Query runs git queries for path, remote url, and branch on each subrepository, and then pushes the result for in a chan of Dependency
-func (x *Executor) Query() {
+func (x *Executor) ExecQuery() <-chan Dependency {
+
 	repositories := x.Repositories()
 	wd := x.wd
-	dep := x.DependencyProcessor
 
 	dependencies := make(chan Dependency)
-	var waiter sync.WaitGroup
 
-	for prj := range repositories {
-		waiter.Add(1)
-		go func(prj string) {
-			defer waiter.Done()
+	go func() {
 
+		for prj := range repositories {
 			branch, err := GitBranch(prj)
 			if err != nil {
 				log.Fatalf("err getting branch %s", err.Error())
@@ -134,12 +131,9 @@ func (x *Executor) Query() {
 					branch: branch,
 				}
 			}
-		}(prj)
+		}
 		//wait and close in a remote so that the main thread ends with the end of processing
-	}
-	go func() {
-		waiter.Wait()
 		close(dependencies)
 	}()
-	dep(dependencies)
+	return dependencies
 }

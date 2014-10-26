@@ -5,41 +5,64 @@ import (
 	"fmt"
 	"github.com/ericaro/mrepo"
 	"os"
+	"text/tabwriter"
 )
 
 var (
-	makefile = flag.Bool("makefile", false, "Print dependencies in a Makefile format")
-	clone    = flag.Bool("clone", false, "Read dependencies from stdin and clone them if needed")
-
-	help = flag.Bool("h", false, "Print this help.")
+	prune = flag.Bool("prune", false, "In diff mode, actually prune extraneous subrepositories")
+	clone = flag.Bool("clone", false, "In diff mode, actually clone missing subrepositories")
+	diff  = flag.Bool("diff", false, "activate diff mode. Compare working dir subrepositories, and the one read in stdin.")
+	help  = flag.Bool("h", false, "Print this help.")
 )
 
-func main() {
-	flag.Parse()
-	if *help {
-		fmt.Println(`USAGE git deps [-options]
+func usage() {
+
+	fmt.Println(`USAGE git deps [-options]
 			
 DESCRIPTION:
 
   Manage git dependencies.
-  Scan recursively the current directory, looking for embedded git repositories.
-  By default, it just prints out each one in a tabular way.
 
-  You can print them in a Makefile format (-makefile)
+  Scan recursively the current directory, looking for embedded git repositories.
+  By default, it just prints out each one in a tabular format.
+
+  In diff mode, it also reads dependencies from stdin, in the same tabular format.
+
+  It then compare local subrepositories, and target subrepositories, to build a list
+  of insertion/deletion.
+
+  By default, it just prints out this changes.
+
+  Using '-clone' you can actually clone insertions.
+  Using '-prune' you can actually prune deletions.
 
 
 OPTIONS:
 `)
-		flag.PrintDefaults()
+	flag.PrintDefaults()
 
-		fmt.Println(`
+	fmt.Println(`
 EXAMPLES:
+	
 
-git deps
+In one workspace, read local subrepositories.
+    $ git deps > subrepos
 
-git deps -makefile > Makefile
+In another workspace, compare with previous
+    $ git deps -diff < subrepos
+
+Apply changes:
+    $ git deps -diff -clone -prune < subrepos
+
 `)
-		os.Exit(-1)
+}
+
+func main() {
+	flag.Parse()
+
+	if *help {
+		usage()
+		return
 	}
 
 	// use wd by default
@@ -48,13 +71,6 @@ git deps -makefile > Makefile
 		fmt.Printf("Error, cannot determine the current directory. %s\n", err.Error())
 	}
 	executor := mrepo.NewExecutor(wd)
-
-	if *clone {
-		executor.ParseDependencies(os.Stdin) // for now, just parse
-		return
-	}
-
-	//scan for current wd
 	go func() {
 		err = executor.Find()
 		if err != nil {
@@ -62,12 +78,25 @@ git deps -makefile > Makefile
 		}
 	}()
 
-	//select the "Depender" i.e what to do with each repo
-	switch {
-	case *makefile:
-		executor.DependencyProcessor = mrepo.Makefiler
-	default:
-		executor.DependencyProcessor = mrepo.DepPrinter
+	if *diff {
+		//get the chan of dependencies as read from the stdin
+
+		target := executor.ParseDependencies(os.Stdin) // for now, just parse
+
+		current := executor.ExecQuery()
+		//convert target / current  into insertion, deletion
+		ins, del := mrepo.MergeDependencies(target, current)
+
+		w := tabwriter.NewWriter(os.Stdout, 3, 8, 3, ' ', 0)
+
+		mrepo.Cloner(ins, *clone, w)
+		mrepo.Pruner(del, *prune, w)
+		w.Flush()
+
+	} else {
+
+		current := executor.ExecQuery()
+		mrepo.DepPrinter(current)
+		return
 	}
-	executor.Query()
 }

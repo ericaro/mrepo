@@ -5,6 +5,10 @@ import (
 	"strings"
 )
 
+const (
+	DefaultTrimCut = "\n \t"
+)
+
 //GitBranch extract the current branch name (HEAD)
 func GitBranch(prj string) (branch string, err error) {
 	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
@@ -13,7 +17,7 @@ func GitBranch(prj string) (branch string, err error) {
 	if err != nil {
 		return
 	}
-	result := strings.Trim(string(out), "\n \t")
+	result := strings.Trim(string(out), DefaultTrimCut)
 	return result, nil
 }
 
@@ -38,6 +42,6 @@ func GitRemoteOrigin(prj string) (origin string, err error) {
 	if err != nil {
 		return
 	}
-	result := strings.Trim(string(out), "\n \t")
+	result := strings.Trim(string(out), DefaultTrimCut)
 	return result, nil
 }
