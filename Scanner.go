@@ -25,11 +25,11 @@ func (s scanner) Find() (err error) {
 	defer close(s.prjc)
 
 	//I would like to do:
-	//err = filepath.Walk(s.wd, s.walkFn)
-	// but for backward compatibility (with 1.0.3) I can't call a method
-	f := func(path string, f os.FileInfo, err error) error { return s.walkFn(path, f, err) }
+	return filepath.Walk(s.wd, s.walkFn)
+	// // but for backward compatibility (with 1.0.3) I can't call a method
+	// f := func(path string, f os.FileInfo, err error) error { return s.walkFn(path, f, err) }
 
-	return filepath.Walk(s.wd, f)
+	// return filepath.Walk(s.wd, f)
 }
 
 //Repositories exposes the chan of repository.

@@ -163,9 +163,10 @@ mrepo is available under the [Apache License, Version 2.0](http://www.apache.org
 # Branches
 
 
+I've dropped support for 1.0, because I'm using bufio.NewScanner() that was not in 1.0.
+
 master: [![Build Status](https://travis-ci.org/ericaro/mrepo.png?branch=master)](https://travis-ci.org/ericaro/mrepo) against go versions:
 
-  - 1.0
   - 1.1
   - 1.2
   - 1.3
@@ -173,7 +174,6 @@ master: [![Build Status](https://travis-ci.org/ericaro/mrepo.png?branch=master)]
 
 dev: [![Build Status](https://travis-ci.org/ericaro/mrepo.png?branch=dev)](https://travis-ci.org/ericaro/mrepo) against go versions:
 
-  - 1.0
   - 1.1
   - 1.2
   - 1.3
