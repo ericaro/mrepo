@@ -84,7 +84,7 @@ But what the branches distribution in the workspace ?
     $ az -count git rev-parse --abbrev-ref HEAD
       24   dev
       12   master
-      ___________
+    
       36   Total
 
 Explanations:
@@ -133,17 +133,17 @@ What about all repositories ?
 
 Generate a Dependencyfile
 
-    $ git deps -makefile > Dependencyfile
+    $ git deps  > Dependencyfile
     $ git add Dependencyfile
     $ git commit -m "Added Dependencyfile for my CI"
 
 On the CI side, you don't just need a pull on the main repository, you also need to clone new repositories:
 
-    $ make -f Dependencyfile tree
+    $ git deps -diff -clone -prune < Dependencyfile
     $ az -a git fetch
     $ az git merge --ff-only
 
-The first statement will clone missing subrepositories.
+The first statement will clone missing subrepositories and prune old ones.
 The second will fetch all new stuff (asynchronously, so really fast, no possible conflict)
 The third, will apply changes (fast forward only (this should be the case for a CI))
 
