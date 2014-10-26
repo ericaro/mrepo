@@ -1,4 +1,4 @@
-//mrepo is a programming library to deal with 'workspaces' that contains several git repositories, called 'subrepository'
+//Package mrepo is a programming library to deal with 'workspaces' that contains several git repositories, called 'subrepository'
 //
 // it scans a working directory, searching for subrepositories.
 //

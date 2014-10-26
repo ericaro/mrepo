@@ -31,7 +31,7 @@ func (e *Execution) Base() string {
 
 }
 
-//Default PostProcessor: print a colored header and the result
+//DefaultPostProcessor just print a colored header and the result
 func DefaultPostProcessor(source <-chan Execution) {
 	var count int
 	for x := range source {
@@ -53,7 +53,7 @@ func Cat(source <-chan Execution) {
 //Sum PostProcessor try to parse the Execution output and sum it up.
 // if it can parse it as a number it uses `NaN`.
 func Sum(source <-chan Execution) {
-	var total float64 = 0
+	var total float64
 	w := tabwriter.NewWriter(os.Stdout, 6, 8, 3, '\t', 0)
 
 	for x := range source {

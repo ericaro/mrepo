@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 )
 
+//Scanner type finds subrepositories and expose them as in a chan.
 type Scanner interface {
 	//find sub repositories, and publish them into a chan.
 	Find() error
@@ -15,15 +16,13 @@ type Scanner interface {
 
 //scanner object to scan for a directory looking for git repositories.
 type scanner struct {
-	prjc     chan string
-	wd       string
-	dirnames map[string]bool
+	prjc chan string
+	wd   string
 }
 
 //NewScan creates a scanner
 func NewScan(workingDir string) Scanner {
 	return &scanner{
-
 		wd:   workingDir,
 		prjc: make(chan string),
 	}

@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/ericaro/mrepo.png?branch=master)](https://travis-ci.org/ericaro/mrepo)
+[![Build Status](https://travis-ci.org/ericaro/mrepo.png?branch=master)](https://travis-ci.org/ericaro/mrepo) [![GoDoc](https://godoc.org/github.com/ericaro/mrepo?status.svg)](https://godoc.org/github.com/ericaro/mrepo)
 
 
 #mrepo - multi repo toolbox

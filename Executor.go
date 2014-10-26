@@ -10,108 +10,108 @@ import (
 	"sync"
 )
 
+//Executor executes the basic commands and dispatch the results to other processors.
+//
+// It delegates to the Scanner the subrepository lookup, and then:
+//
+// - executes a random command synchronously or concurrently and pushes the result in a chan of 'Execution'
+// asynchronously
+//
+// - executes builtin git queries about the subrepository and push the result in a chan of 'Dependency'
+//
+// Caveat, sync execution passes stdin/out to the subprocess that runs the command, so it can run in interactive mode,
+// whereas async execution does not.
+// async mode is required for statistical postprocessors.
 type Executor struct {
 	wd string //current working dir
 	PostProcessor
 	DepProcessor
+	Scanner
 }
 
+//NewExecutor creates a new Executor for a working dir.
 func NewExecutor(wd string) *Executor {
 	return &Executor{
 		wd:            wd,
 		PostProcessor: DefaultPostProcessor, //default postprocessor
 		DepProcessor:  DepPrinter,           //default depender
+		Scanner:       NewScan(wd),
 	}
 }
 
-//Seq run for each `project` in `projects` command `name` with arguments `args`
-//
-// because of some commands optimisation, it is not the same as running them async, and then printing the output
-// some commands DO not print the same output if they are connected to the stdout.
-// besides, you lose the stdin ability.
-func (x *Executor) Seq(projects <-chan string, name string, args ...string) {
-	var count int
-	wd := x.wd
-	for prj := range projects {
-		count++
-		rel, err := filepath.Rel(wd, prj)
+//relpath computes the relative path of a subrepository
+func (x *Executor) relpath(subrepository string) string {
+	if filepath.IsAbs(subrepository) {
+		rel, err := filepath.Rel(x.wd, subrepository)
 		if err != nil {
-			log.Fatalf("prj does not appear to be in the current directory %s", err.Error())
+			fmt.Printf("prj does not appear to be in the current directory %s\n", err.Error())
 		}
-		fmt.Printf("\033[00;32m%s\033[00m$ %s %s\n", rel, name, strings.Join(args, " "))
-		cmd := exec.Command(name, args...)
-		cmd.Dir = prj
+		return rel
+	} else {
+		return subrepository
+	}
+}
+
+//ExecSync runs for each `subrepository` found by Scanner the  command `command` with arguments `args`
+// It passes the stdin, stdout, and stderr to the subprocess. and wait for the result.
+func (x *Executor) ExecSync(command string, args ...string) {
+	var count int
+	for sub := range x.Repositories() {
+		count++
+		rel := x.relpath(sub)
+		fmt.Printf("\033[00;32m%s\033[00m$ %s %s\n", rel, command, strings.Join(args, " "))
+		cmd := exec.Command(command, args...)
+		cmd.Dir = sub
 		cmd.Stderr, cmd.Stdout, cmd.Stdin = os.Stderr, os.Stdout, os.Stdin
 		if err := cmd.Run(); err != nil {
-			fmt.Printf("Error running '%s %s':\n    %s\n", name, strings.Join(args, " "), err.Error())
+			fmt.Printf("Error running '%s %s':\n    %s\n", command, strings.Join(args, " "), err.Error())
 		}
 	}
 	fmt.Printf("Done (\033[00;32m%v\033[00m repositories)\n", count)
 }
 
-//List just count and print all directories.
-func (x *Executor) List(projects <-chan string) {
-	wd := x.wd
-	var count int
-	for prj := range projects {
-		count++
-		rel, err := filepath.Rel(wd, prj)
-		if err != nil {
-			rel = prj // uses the absolute path in this case
-		}
-		fmt.Printf("\033[00;32m%s\033[00m$ \n", rel)
-	}
-	fmt.Printf("Done (\033[00;32m%v\033[00m repositories)\n", count)
-}
-
-//Concurrent run, in sequences the command on each repository
-// because of some commands optimisation, it is not the same as running them async, and then printing the output
-// some commands DO not print the same output if they are connected to the stdout.
-// besides, you lose the stdin ability.
-func (x *Executor) Concurrent(projects <-chan string, name string, args ...string) {
-	wd := x.wd
-	outputF := x.PostProcessor
-
-	outputer := make(chan Execution)
-	var waiter sync.WaitGroup
-	for prj := range projects {
+//ExecSync runs for each `subrepository` found by Scanner the  command `command` with arguments `args`.
+// Each command is executed concurrently, and the outputs are collected (both err, and out).
+func (x *Executor) Exec(command string, args ...string) {
+	executions := make(chan Execution)
+	var waiter sync.WaitGroup // to wait for all commands to return
+	for sub := range x.Repositories() {
 		waiter.Add(1)
 
-		go func(prj string) {
+		go func(sub string) {
 			defer waiter.Done()
-			cmd := exec.Command(name, args...)
-			cmd.Dir = prj
+			cmd := exec.Command(command, args...)
+			cmd.Dir = sub
 			out, err := cmd.CombinedOutput()
 			if err != nil {
 				return
 			}
-			rel, err := filepath.Rel(wd, prj)
-			if err != nil {
-				log.Fatalf("prj does not appear to be in the current directory %s", err.Error())
-			}
+			rel := x.relpath(sub)
 			// keep
-			//head := fmt.Sprintf("\033[00;32m%s\033[00m$ %s %s\n", prj, name, strings.Join(args, " "))
-			//outputer <- head + string(out)
-			outputer <- Execution{Name: prj, Rel: rel, Cmd: name, Args: args, Result: string(out)}
-		}(prj)
+			//head := fmt.Sprintf("\033[00;32m%s\033[00m$ %s %s\n", sub, command, strings.Join(args, " "))
+			//executions <- head + string(out)
+			executions <- Execution{Name: sub, Rel: rel, Cmd: command, Args: args, Result: string(out)}
+		}(sub)
 	}
 
 	go func() {
 		waiter.Wait()
-		close(outputer)
+		close(executions)
 	}()
-	outputF(outputer)
+	x.PostProcessor(executions)
 
 }
 
-func (x *Executor) Dependencies(sources <-chan string) {
+//Query runs git queries for path, remote url, and branch on each subrepository, and then pushes the result for in a chan of Dependency
+func (x *Executor) Query() {
+	repositories := x.Repositories()
 	wd := x.wd
 	dep := x.DepProcessor
 
 	dependencies := make(chan Dependency)
 	var waiter sync.WaitGroup
 
-	for prj := range sources {
+	for prj := range repositories {
 		waiter.Add(1)
 		go func(prj string) {
 			defer waiter.Done()
@@ -124,10 +124,7 @@ func (x *Executor) Dependencies(sources <-chan string) {
 			if err != nil {
 				log.Fatalf("err getting origin %s", err.Error())
 			}
-			rel, err := filepath.Rel(wd, prj)
-			if err != nil {
-				log.Fatalf("prj does not appear to be in the current directory %s", err.Error())
-			}
+			rel := x.relpath(prj)
 			if rel != "." {
 				dependencies <- Dependency{
 					wd:     wd,
