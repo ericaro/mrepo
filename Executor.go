@@ -27,6 +27,7 @@ type Executor struct {
 	ExecutionProcessor
 	DependencyProcessor
 	*scanner
+	*dependencyParser
 }
 
 //NewExecutor creates a new Executor for a working dir.
@@ -36,6 +37,7 @@ func NewExecutor(wd string) *Executor {
 		ExecutionProcessor:  DefaultPostProcessor, //default postprocessor
 		DependencyProcessor: DepPrinter,           //default depender
 		scanner:             newScan(wd),
+		dependencyParser:    &dependencyParser{wd: wd, post: Cloner},
 	}
 }
 

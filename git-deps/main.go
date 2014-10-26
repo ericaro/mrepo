@@ -9,7 +9,9 @@ import (
 
 var (
 	makefile = flag.Bool("makefile", false, "Print dependencies in a Makefile format")
-	help     = flag.Bool("h", false, "Print this help.")
+	clone    = flag.Bool("clone", false, "Read dependencies from stdin and clone them if needed")
+
+	help = flag.Bool("h", false, "Print this help.")
 )
 
 func main() {
@@ -46,6 +48,12 @@ git deps -makefile > Makefile
 		fmt.Printf("Error, cannot determine the current directory. %s\n", err.Error())
 	}
 	executor := mrepo.NewExecutor(wd)
+
+	if *clone {
+		executor.ParseDependencies(os.Stdin) // for now, just parse
+		return
+	}
+
 	//scan for current wd
 	go func() {
 		err = executor.Find()
