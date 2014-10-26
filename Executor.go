@@ -90,7 +90,7 @@ func (x *Executor) Exec(command string, args ...string) {
 			//head := fmt.Sprintf("\033[00;32m%s\033[00m$ %s %s\n", sub, command, strings.Join(args, " "))
 			//executions <- head + string(out)
 			result := string(out)
-			result = strings.Trim(result, DefaultTrimCut)
+			result = strings.Trim(result, defaultTrimCut)
 			executions <- Execution{Name: sub, Rel: rel, Cmd: command, Args: args, Result: result}
 		}(sub)
 	}
@@ -103,7 +103,7 @@ func (x *Executor) Exec(command string, args ...string) {
 
 }
 
-//Query runs git queries for path, remote url, and branch on each subrepository, and then pushes the result for in a chan of Dependency
+//ExecQuery runs git queries for path, remote url, and branch on each subrepository, and then pushes the result for in a chan of Dependency
 func (x *Executor) ExecQuery() <-chan Dependency {
 
 	repositories := x.Repositories()

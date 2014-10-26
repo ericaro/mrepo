@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	DefaultTrimCut = "\n \t"
+	defaultTrimCut = "\n \t"
 )
 
 //GitBranch extract the current branch name (HEAD)
@@ -17,7 +17,7 @@ func GitBranch(prj string) (branch string, err error) {
 	if err != nil {
 		return
 	}
-	result := strings.Trim(string(out), DefaultTrimCut)
+	result := strings.Trim(string(out), defaultTrimCut)
 	return result, nil
 }
 
@@ -42,6 +42,6 @@ func GitRemoteOrigin(prj string) (origin string, err error) {
 	if err != nil {
 		return
 	}
-	result := strings.Trim(string(out), DefaultTrimCut)
+	result := strings.Trim(string(out), defaultTrimCut)
 	return result, nil
 }

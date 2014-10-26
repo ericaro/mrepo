@@ -43,7 +43,7 @@ func (p *dependencyParser) ParseDependencies(r io.Reader) <-chan Dependency {
 	return dependencies
 }
 
-//Read target chan of dependency and current one, an generates two chan
+//MergeDependencies reads target chan of dependency and current one, an generates two chan
 // one for the insertion to be made to current to be equal to target
 // one for the deletion to be made to current to be equal to target
 //later, maybe we'll add update for branches
