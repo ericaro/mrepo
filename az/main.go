@@ -24,10 +24,8 @@ var digest = flag.Bool("digest", false, "compute the sha1 digest of all outputs"
 
 var help = flag.Bool("h", false, "Print this help.")
 
-func main() {
-	flag.Parse()
-	if (flag.NArg() == 0 && !*list) || *help {
-		fmt.Printf(`USAGE %s [-options] <command> <args...>
+func usage() {
+	fmt.Printf(`USAGE %s [-options] <command> <args...>
 			
 DESCRIPTION:
 
@@ -36,11 +34,17 @@ DESCRIPTION:
 OPTIONS:
 	
 `, os.Args[0])
-		flag.PrintDefaults()
+	flag.PrintDefaults()
 
-		fmt.Println("\nEXAMPLE:\n")
+	fmt.Println("\nEXAMPLE:\n")
 
-		fmt.Printf("'%s git status -s'\n", os.Args[0])
+	fmt.Printf("'%s git status -s'\n", os.Args[0])
+}
+
+func main() {
+	flag.Parse()
+	if (flag.NArg() == 0 && !*list) || *help {
+		usage()
 		os.Exit(-1)
 	}
 
@@ -49,8 +53,8 @@ OPTIONS:
 	if err != nil {
 		log.Fatalf("Error, cannot determine the current directory. %s\n", err.Error())
 	}
-
-	executor := mrepo.NewExecutor(wd)
+	//build the workspace, that is used to trigger all commands
+	workspace := mrepo.NewWorkspace(wd)
 
 	// parses the remaining args in order to pass them to the underlying process
 	args := make([]string, 0)
@@ -59,18 +63,11 @@ OPTIONS:
 	}
 	name := flag.Arg(0)
 
-	go func() {
-		err = executor.Find()
-		if err != nil {
-			fmt.Printf("Error scanning current directory (%s). %s", wd, err.Error())
-		}
-	}()
-
 	if *list {
 		//for now there is only one way to print dependencies
 		//List just count and print all directories.
 		var count int
-		for prj := range executor.Repositories() {
+		for prj := range workspace.Scan() {
 			count++
 			rel, err := filepath.Rel(wd, prj)
 			if err != nil {
@@ -89,28 +86,30 @@ OPTIONS:
 		// Therefore, selecting the output mode imply selecting "special"= true|false
 		// and the ExecutionProcessor function
 		var special bool = true
-
+		var xp mrepo.ExecutionProcessor
 		switch {
 		case *cat:
-			executor.ExecutionProcessor = mrepo.Cat
+			xp = mrepo.Cat
 		case *sum:
-			executor.ExecutionProcessor = mrepo.Sum
+			xp = mrepo.Sum
 		case *count:
-			executor.ExecutionProcessor = mrepo.Count
+			xp = mrepo.Count
 		case *digest:
-			executor.ExecutionProcessor = mrepo.Digest
+			xp = mrepo.Digest
 		default:
+			xp = mrepo.ExecutionPrinter
 			special = false
 		}
-
 		if special || *async { // this implies concurrent
 			// based on the async option, exec asynchronously or sequentially.
 			// we cannot just make "seq" a special case of concurrent, since when running sequentially we provide
 			// direct access to the std streams. commands can use stdin, and use term escape codes.
 			// When in async mode, we just can't do that.
-			executor.Exec(name, args...)
+			executions := workspace.Exec(name, args...)
+			xp(executions)
+
 		} else {
-			executor.ExecSync(name, args...)
+			workspace.ExecSync(name, args...)
 		}
 	}
 

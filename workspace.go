@@ -1,7 +1,9 @@
 package mrepo
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -10,37 +12,31 @@ import (
 	"sync"
 )
 
-//Executor executes the basic commands and dispatch the results to other processors.
+//Workspace represent the current workspace.
 //
-// It delegates to the Scanner the subrepository lookup, and then:
 //
-// - executes a random command synchronously or concurrently and pushes the result in a chan of 'Execution'
-// asynchronously
+// - executes a random command synchronously
 //
-// - executes builtin git queries about the subrepository and push the result in a chan of 'Dependency'
+// - executes a random command concurrently and pushes the result in a chan of 'Execution'
+//
+// - read local subrepositories
 //
 // Caveat, sync execution passes stdin/out to the subprocess that runs the command, so it can run in interactive mode,
 // whereas async execution does not.
 // async mode is required for statistical postprocessors.
-type Executor struct {
+type Workspace struct {
 	wd string //current working dir
-	ExecutionProcessor
-	*scanner
-	*dependencyParser
 }
 
-//NewExecutor creates a new Executor for a working dir.
-func NewExecutor(wd string) *Executor {
-	return &Executor{
-		wd:                 wd,
-		ExecutionProcessor: DefaultPostProcessor, //default postprocessor
-		scanner:            newScan(wd),
-		dependencyParser:   &dependencyParser{wd: wd},
+//NewWorkspace creates a new Workspace for a working dir.
+func NewWorkspace(wd string) *Workspace {
+	return &Workspace{
+		wd: wd,
 	}
 }
 
 //relpath computes the relative path of a subrepository
-func (x *Executor) relpath(subrepository string) string {
+func (x *Workspace) relpath(subrepository string) string {
 	if filepath.IsAbs(subrepository) {
 		rel, err := filepath.Rel(x.wd, subrepository)
 		if err != nil {
@@ -51,11 +47,35 @@ func (x *Executor) relpath(subrepository string) string {
 	return subrepository
 }
 
+//start a gorutine in charge of scanning the local repo AND return the chan that will contain it.
+func (x *Workspace) Scan() <-chan string {
+	prjc := make(chan string)
+	//the subrepo scanner function
+	walker := func(path string, f os.FileInfo, err error) error {
+		if f.IsDir() {
+			if f.Name() == ".git" {
+				// it's a repository file
+				prjc <- filepath.Dir(path)
+				//always skip the repository file
+				return filepath.SkipDir
+			}
+		}
+		return nil
+	}
+
+	go func() {
+		defer close(prjc)
+		filepath.Walk(x.wd, walker)
+	}()
+	return prjc
+}
+
 //ExecSync runs for each `subrepository` found by Scanner the  command `command` with arguments `args`
 // It passes the stdin, stdout, and stderr to the subprocess. and wait for the result.
-func (x *Executor) ExecSync(command string, args ...string) {
+func (x *Workspace) ExecSync(command string, args ...string) {
 	var count int
-	for sub := range x.Repositories() {
+
+	for sub := range x.Scan() {
 		count++
 		rel := x.relpath(sub)
 		fmt.Printf("\033[00;32m%s\033[00m$ %s %s\n", rel, command, strings.Join(args, " "))
@@ -71,10 +91,10 @@ func (x *Executor) ExecSync(command string, args ...string) {
 
 //Exec runs for each `subrepository` found by Scanner the  command `command` with arguments `args`.
 // Each command is executed concurrently, and the outputs are collected (both err, and out).
-func (x *Executor) Exec(command string, args ...string) {
+func (x *Workspace) Exec(command string, args ...string) <-chan Execution {
 	executions := make(chan Execution)
 	var waiter sync.WaitGroup // to wait for all commands to return
-	for sub := range x.Repositories() {
+	for sub := range x.Scan() {
 		waiter.Add(1)
 
 		go func(sub string) {
@@ -99,21 +119,16 @@ func (x *Executor) Exec(command string, args ...string) {
 		waiter.Wait()
 		close(executions)
 	}()
-	x.ExecutionProcessor(executions)
-
+	return executions
 }
 
 //ExecQuery runs git queries for path, remote url, and branch on each subrepository, and then pushes the result for in a chan of Dependency
-func (x *Executor) ExecQuery() <-chan Dependency {
-
-	repositories := x.Repositories()
-	wd := x.wd
-
+func (x *Workspace) ExecQuery() <-chan Dependency {
 	dependencies := make(chan Dependency)
-
 	go func() {
 
-		for prj := range repositories {
+		for prj := range x.Scan() {
+
 			branch, err := GitBranch(prj)
 			if err != nil {
 				log.Fatalf("err getting branch %s", err.Error())
@@ -125,7 +140,7 @@ func (x *Executor) ExecQuery() <-chan Dependency {
 			rel := x.relpath(prj)
 			if rel != "." {
 				dependencies <- Dependency{
-					wd:     wd,
+					wd:     x.wd,
 					rel:    rel,
 					remote: origin,
 					branch: branch,
@@ -134,6 +149,40 @@ func (x *Executor) ExecQuery() <-chan Dependency {
 		}
 		//wait and close in a remote so that the main thread ends with the end of processing
 		close(dependencies)
+	}()
+	return dependencies
+}
+
+//ParseDependencies scans 'r' and fill <-chan Dependency
+func (p *Workspace) ParseDependencies(r io.Reader) <-chan Dependency {
+	dependencies := make(chan Dependency)
+	go func() {
+
+		scanner := bufio.NewScanner(r)
+		//use a word splitter
+		scanner.Split(bufio.ScanWords)
+
+		for scanner.Scan() {
+			rel := scanner.Text()
+			if !scanner.Scan() {
+				log.Fatalf("missing remote definition.")
+			}
+			remote := scanner.Text()
+			if !scanner.Scan() {
+				log.Fatalf("missing branch definition.")
+			}
+			branch := scanner.Text()
+
+			//log.Printf("scanned to: git clone %s -b %s %s", remote, branch, rel)
+			dependencies <- Dependency{
+				rel:    rel,
+				remote: remote,
+				branch: branch,
+				wd:     p.wd,
+			}
+
+		}
+		close(dependencies) //done parsing
 	}()
 	return dependencies
 }

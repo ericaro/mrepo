@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
 )
+
+//this file contains function dealing with chan Execution (ie results of random command)
 
 // ExecutionProcessor is a function that should process executions from the given chan
 type ExecutionProcessor func(<-chan Execution)
@@ -25,14 +26,8 @@ type Execution struct {
 	Result string
 }
 
-//Base returns the Base name for the project
-func (e *Execution) Base() string {
-	return filepath.Base(e.Name)
-
-}
-
-//DefaultPostProcessor just print a colored header and the result
-func DefaultPostProcessor(source <-chan Execution) {
+//ExecutionPrinter just print a colored header and the result
+func ExecutionPrinter(source <-chan Execution) {
 	var count int
 	for x := range source {
 		count++
@@ -46,11 +41,11 @@ func DefaultPostProcessor(source <-chan Execution) {
 //Cat ExecutionProcessor `cat` together all outputs.
 func Cat(source <-chan Execution) {
 	for x := range source {
-		fmt.Print(x.Result)
+		fmt.Println(x.Result)
 	}
 }
 
-//Sum ExecutionProcessor try to parse the Execution output and sum it up.
+//Sum  attempt to parse the Execution result as a number and sum it up.
 // if it can parse it as a number it uses `NaN`.
 func Sum(source <-chan Execution) {
 	var total float64
@@ -72,7 +67,7 @@ func Sum(source <-chan Execution) {
 
 }
 
-//Count ExecutionProcessor that count unique outputs
+//Count counts different outputs
 func Count(source <-chan Execution) {
 	hist := make(map[string]int)
 	var count int
@@ -93,22 +88,24 @@ func Count(source <-chan Execution) {
 
 }
 
-//Digest ExecutionProcessor computes the digest of all outputs.
+//Digest computes the digest of all execution results concatenated.
 // Outputs are trimed of whitespaces. (` \n\r\t`)
 func Digest(source <-chan Execution) {
 
 	//we are going to sort prj by name first
 	all := make([]Execution, 0, 100)
-	//first flush the source and store projects
+
+	//first flush the source, store them, and sort them
+	// because we need to ompute the digest in a repetitive order
 	for x := range source {
 		all = append(all, x)
 	}
 	sort.Sort(byName(all))
 
+	// now compute the sha1
 	h := sha1.New()
 	for _, x := range all {
-		cleaned := strings.Trim(x.Result, " \n\r\t")
-		fmt.Fprint(h, cleaned)
+		fmt.Fprint(h, x.Result)
 	}
 	fmt.Printf("%x\n", h.Sum(nil))
 }

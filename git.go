@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+//this file contains function do deal with git commands.
+
 const (
 	defaultTrimCut = "\n \t"
 )

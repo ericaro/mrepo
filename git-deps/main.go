@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ericaro/mrepo"
 	"os"
+	"sync"
 	"text/tabwriter"
 )
 
@@ -70,33 +71,37 @@ func main() {
 	if err != nil {
 		fmt.Printf("Error, cannot determine the current directory. %s\n", err.Error())
 	}
-	executor := mrepo.NewExecutor(wd)
-	go func() {
-		err = executor.Find()
-		if err != nil {
-			fmt.Printf("Error scanning current directory (%s). %s", wd, err.Error())
-		}
-	}()
+	workspace := mrepo.NewWorkspace(wd)
 
 	if *diff {
 		//get the chan of dependencies as read from the stdin
+		target := workspace.ParseDependencies(os.Stdin) // for now, just parse
 
-		target := executor.ParseDependencies(os.Stdin) // for now, just parse
-
-		current := executor.ExecQuery()
+		current := workspace.ExecQuery()
 		//convert target / current  into insertion, deletion
-		ins, del := mrepo.MergeDependencies(target, current)
+		ins, del := mrepo.Diff(target, current)
 
+		// the output will be fully tabbed
 		w := tabwriter.NewWriter(os.Stdout, 3, 8, 3, ' ', 0)
-
-		mrepo.Cloner(ins, *clone, w)
-		mrepo.Pruner(del, *prune, w)
+		var waiter sync.WaitGroup
+		waiter.Add(1)
+		go func() {
+			defer waiter.Done()
+			mrepo.Cloner(ins, *clone, w)
+		}()
+		waiter.Add(1)
+		go func() {
+			defer waiter.Done()
+			mrepo.Pruner(del, *prune, w)
+		}()
+		waiter.Wait()
 		w.Flush()
 
-	} else {
-
-		current := executor.ExecQuery()
-		mrepo.DepPrinter(current)
+	} else { // not diff mode, hence, plain local mode
+		// execute query on each subrepo
+		current := workspace.ExecQuery()
+		// and just print it out
+		mrepo.DependencyPrinter(current)
 		return
 	}
 }

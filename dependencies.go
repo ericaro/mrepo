@@ -10,6 +10,8 @@ import (
 	"text/tabwriter"
 )
 
+//this files contains functions that deals with chan Dependency
+
 //DependencyProcessor type is called on Dependency to deal with them.
 type DependencyProcessor func(prj <-chan Dependency)
 
@@ -21,8 +23,8 @@ type Dependency struct {
 	branch string
 }
 
-//DepPrinter simply print out the information, in a tabular way.
-func DepPrinter(sources <-chan Dependency) {
+//DependencyPrinter simply print out the information, in a tabular way.
+func DependencyPrinter(sources <-chan Dependency) {
 	w := tabwriter.NewWriter(os.Stdout, 3, 8, 3, ' ', 0)
 
 	for d := range sources {
@@ -31,20 +33,21 @@ func DepPrinter(sources <-chan Dependency) {
 	w.Flush()
 }
 
-//Cloner actually clone missing dependencies
+//Cloner clones dependencies
+// if apply = false: only a dry run is printed out
+// otherwise the operation is made, and printed out.
+// results are printed using a tabular format into 'w'
 func Cloner(sources <-chan Dependency, apply bool, w io.Writer) {
-
 	var waiter sync.WaitGroup // to wait for all commands to return
 	for d := range sources {
-		// if I need to, I will clone
-
+		// check if I need to clone
 		info, err := os.Stat(filepath.Join(d.wd, d.rel))
 		if err == nil && !info.IsDir() {
 			// oups there is a file in the way
 			log.Fatalf("Cannot clone into %s, a file already exists.")
 		}
-		if os.IsNotExist(err) { // I need to create one
 
+		if os.IsNotExist(err) { // I need to create one
 			waiter.Add(1)
 			go func(d Dependency) {
 				defer waiter.Done()
@@ -66,7 +69,10 @@ func Cloner(sources <-chan Dependency, apply bool, w io.Writer) {
 	waiter.Wait()
 }
 
-//Pruner remove all dependencies locally that are in the chan
+//Pruner prunes  dependencies
+// if apply == false, then only a dry run is printed out.
+// otherwise, actually remove the dependency and prints the result
+// reults are printed using a tabular format into 'w'
 func Pruner(sources <-chan Dependency, apply bool, w io.Writer) {
 
 	var waiter sync.WaitGroup // to wait for all commands to return
@@ -95,4 +101,44 @@ func Pruner(sources <-chan Dependency, apply bool, w io.Writer) {
 	}
 	//wait for all executions
 	waiter.Wait()
+}
+
+//Diff reads target chan of dependency and current one, an generates two chan
+// one for the insertion to be made to current to be equal to target
+// one for the deletion to be made to current to be equal to target
+//later, maybe we'll add update for branches
+func Diff(target, current <-chan Dependency) (insertion, deletion <-chan Dependency) {
+	targets := make(map[string]Dependency, 100)
+	currents := make(map[string]Dependency, 100)
+
+	ins, del := make(chan Dependency), make(chan Dependency)
+	go func() {
+
+		//first flush the targets and currents
+		for x := range target {
+			targets[x.rel] = x
+		}
+		for x := range current {
+			currents[x.rel] = x
+		}
+
+		//then compute the diffs
+
+		for id, t := range targets { // for each target
+			_, exists := currents[id]
+			if !exists { // if missing , create an insert
+				ins <- t
+			}
+		}
+		close(ins)
+
+		for id, c := range currents { // for each current
+			_, exists := targets[id]
+			if !exists { // locally exists, but not in target, it's a deletion
+				del <- c
+			}
+		}
+		close(del)
+	}()
+	return ins, del
 }
