@@ -12,8 +12,8 @@ import (
 	"text/tabwriter"
 )
 
-// PostProcessor is a function that should process executions from the given chan
-type PostProcessor func(<-chan Execution)
+// ExecutionProcessor is a function that should process executions from the given chan
+type ExecutionProcessor func(<-chan Execution)
 
 //Execution is the result of a command Execution on a given project
 // You get the project's name (the full path to the repository )
@@ -43,14 +43,14 @@ func DefaultPostProcessor(source <-chan Execution) {
 	fmt.Printf("Done (\033[00;32m%v\033[00m repositories)\n", count)
 }
 
-//Cat PostProcessor `cat` together all outputs.
+//Cat ExecutionProcessor `cat` together all outputs.
 func Cat(source <-chan Execution) {
 	for x := range source {
 		fmt.Print(x.Result)
 	}
 }
 
-//Sum PostProcessor try to parse the Execution output and sum it up.
+//Sum ExecutionProcessor try to parse the Execution output and sum it up.
 // if it can parse it as a number it uses `NaN`.
 func Sum(source <-chan Execution) {
 	var total float64
@@ -72,7 +72,7 @@ func Sum(source <-chan Execution) {
 
 }
 
-//Count PostProcessor that count unique outputs
+//Count ExecutionProcessor that count unique outputs
 func Count(source <-chan Execution) {
 	hist := make(map[string]int)
 	var count int
@@ -93,7 +93,7 @@ func Count(source <-chan Execution) {
 
 }
 
-//Digest PostProcessor computes the digest of all outputs.
+//Digest ExecutionProcessor computes the digest of all outputs.
 // Outputs are trimed of whitespaces. (` \n\r\t`)
 func Digest(source <-chan Execution) {
 

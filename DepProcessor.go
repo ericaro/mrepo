@@ -7,8 +7,8 @@ import (
 	"text/tabwriter"
 )
 
-//DepProcessor type is called on Dependency to deal with them.
-type DepProcessor func(prj <-chan Dependency)
+//DependencyProcessor type is called on Dependency to deal with them.
+type DependencyProcessor func(prj <-chan Dependency)
 
 //Dependency type contains all the information about each subrepository.
 type Dependency struct {

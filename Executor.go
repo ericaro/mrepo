@@ -24,18 +24,18 @@ import (
 // async mode is required for statistical postprocessors.
 type Executor struct {
 	wd string //current working dir
-	PostProcessor
-	DepProcessor
-	Scanner
+	ExecutionProcessor
+	DependencyProcessor
+	*scanner
 }
 
 //NewExecutor creates a new Executor for a working dir.
 func NewExecutor(wd string) *Executor {
 	return &Executor{
-		wd:            wd,
-		PostProcessor: DefaultPostProcessor, //default postprocessor
-		DepProcessor:  DepPrinter,           //default depender
-		Scanner:       NewScan(wd),
+		wd:                  wd,
+		ExecutionProcessor:  DefaultPostProcessor, //default postprocessor
+		DependencyProcessor: DepPrinter,           //default depender
+		scanner:             newScan(wd),
 	}
 }
 
@@ -98,7 +98,7 @@ func (x *Executor) Exec(command string, args ...string) {
 		waiter.Wait()
 		close(executions)
 	}()
-	x.PostProcessor(executions)
+	x.ExecutionProcessor(executions)
 
 }
 
@@ -106,7 +106,7 @@ func (x *Executor) Exec(command string, args ...string) {
 func (x *Executor) Query() {
 	repositories := x.Repositories()
 	wd := x.wd
-	dep := x.DepProcessor
+	dep := x.DependencyProcessor
 
 	dependencies := make(chan Dependency)
 	var waiter sync.WaitGroup

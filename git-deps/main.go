@@ -57,9 +57,9 @@ git deps -makefile > Makefile
 	//select the "Depender" i.e what to do with each repo
 	switch {
 	case *makefile:
-		executor.DepProcessor = mrepo.Makefiler
+		executor.DependencyProcessor = mrepo.Makefiler
 	default:
-		executor.DepProcessor = mrepo.DepPrinter
+		executor.DependencyProcessor = mrepo.DepPrinter
 	}
 	executor.Query()
 }

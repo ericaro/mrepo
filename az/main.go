@@ -87,18 +87,18 @@ OPTIONS:
 		// for special outputers we need to collect outputs, so the 'special' var.
 		// special => concurrent mode (because we need to collect outputs)
 		// Therefore, selecting the output mode imply selecting "special"= true|false
-		// and the PostProcessor function
+		// and the ExecutionProcessor function
 		var special bool = true
 
 		switch {
 		case *cat:
-			executor.PostProcessor = mrepo.Cat
+			executor.ExecutionProcessor = mrepo.Cat
 		case *sum:
-			executor.PostProcessor = mrepo.Sum
+			executor.ExecutionProcessor = mrepo.Sum
 		case *count:
-			executor.PostProcessor = mrepo.Count
+			executor.ExecutionProcessor = mrepo.Count
 		case *digest:
-			executor.PostProcessor = mrepo.Digest
+			executor.ExecutionProcessor = mrepo.Digest
 		default:
 			special = false
 		}

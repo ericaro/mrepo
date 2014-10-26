@@ -5,23 +5,14 @@ import (
 	"path/filepath"
 )
 
-//Scanner type finds subrepositories and expose them as in a chan.
-type Scanner interface {
-	//find sub repositories, and publish them into a chan.
-	Find() error
-	// get the chan where repositories are published.
-	// Once all project have been found, the chan is closed.
-	Repositories() <-chan string
-}
-
 //scanner object to scan for a directory looking for git repositories.
 type scanner struct {
 	prjc chan string
 	wd   string
 }
 
-//NewScan creates a scanner
-func NewScan(workingDir string) Scanner {
+//newScan creates a scanner
+func newScan(workingDir string) *scanner {
 	return &scanner{
 		wd:   workingDir,
 		prjc: make(chan string),
@@ -33,9 +24,11 @@ func NewScan(workingDir string) Scanner {
 func (s scanner) Find() (err error) {
 	defer close(s.prjc)
 
+	//I would like to do:
 	//err = filepath.Walk(s.wd, s.walkFn)
-	// for backward compatibility (with 1.0.3) I can't call a method
+	// but for backward compatibility (with 1.0.3) I can't call a method
 	f := func(path string, f os.FileInfo, err error) error { return s.walkFn(path, f, err) }
+
 	return filepath.Walk(s.wd, f)
 }
 
