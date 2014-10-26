@@ -47,9 +47,8 @@ func (x *Executor) relpath(subrepository string) string {
 			fmt.Printf("prj does not appear to be in the current directory %s\n", err.Error())
 		}
 		return rel
-	} else {
-		return subrepository
 	}
+	return subrepository
 }
 
 //ExecSync runs for each `subrepository` found by Scanner the  command `command` with arguments `args`
@@ -70,7 +69,7 @@ func (x *Executor) ExecSync(command string, args ...string) {
 	fmt.Printf("Done (\033[00;32m%v\033[00m repositories)\n", count)
 }
 
-//ExecSync runs for each `subrepository` found by Scanner the  command `command` with arguments `args`.
+//Exec runs for each `subrepository` found by Scanner the  command `command` with arguments `args`.
 // Each command is executed concurrently, and the outputs are collected (both err, and out).
 func (x *Executor) Exec(command string, args ...string) {
 	executions := make(chan Execution)
