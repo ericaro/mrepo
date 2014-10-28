@@ -1,7 +1,6 @@
 package mrepo
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"log"
@@ -158,31 +157,20 @@ func (p *Workspace) ParseDependencies(r io.Reader) <-chan Dependency {
 	dependencies := make(chan Dependency)
 	go func() {
 
-		scanner := bufio.NewScanner(r)
-		//use a word splitter
-		scanner.Split(bufio.ScanWords)
+		var err error
 
-		for scanner.Scan() {
-			rel := scanner.Text()
-			if !scanner.Scan() {
-				log.Fatalf("missing remote definition.")
+		for err == nil {
+			var kind string
+			d := Dependency{wd: p.wd}
+			_, err = fmt.Fscanf(r, "%s %q %q %q\n", &kind, &d.rel, &d.remote, &d.branch)
+			if err == nil {
+				dependencies <- d
 			}
-			remote := scanner.Text()
-			if !scanner.Scan() {
-				log.Fatalf("missing branch definition.")
-			}
-			branch := scanner.Text()
-
-			//log.Printf("scanned to: git clone %s -b %s %s", remote, branch, rel)
-			dependencies <- Dependency{
-				rel:    rel,
-				remote: remote,
-				branch: branch,
-				wd:     p.wd,
-			}
-
 		}
 		close(dependencies) //done parsing
+		if err != io.EOF {
+			log.Fatalf("Error while reading .mrepo", err.Error())
+		}
 	}()
 	return dependencies
 }

@@ -33,6 +33,16 @@ func DependencyPrinter(sources <-chan Dependency) {
 	w.Flush()
 }
 
+//DependencyPrinter simply print out the information, in a tabular way.
+func MrepoFormat(sources <-chan Dependency) {
+	w := tabwriter.NewWriter(os.Stdout, 3, 8, 3, ' ', 0)
+
+	for d := range sources {
+		fmt.Fprintf(w, "git\t%q\t%q\t%q\n", d.rel, d.remote, d.branch)
+	}
+	w.Flush()
+}
+
 //Cloner clones dependencies
 // if apply = false: only a dry run is printed out
 // otherwise the operation is made, and printed out.

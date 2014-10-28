@@ -9,23 +9,8 @@ import (
 	"path/filepath"
 )
 
-// the main that run a command on all sub commands
-
-var async = flag.Bool("a", false, "Controls the execution mode.\n           '-a' or '-a=true' run commands asynchronously.\n           '-a=false' of by default run commands sequentially.")
-var list = flag.Bool("l", false, "Dry mode just list the repositories.")
-
-// output selection
-var cat = flag.Bool("cat", false, "concatenate outputs, and print it")
-var sum = flag.Bool("sum", false, "parse each output as a number and print out the total")
-var count = flag.Bool("count", false, "count different outputs, and prints the resulting histogram")
-var digest = flag.Bool("digest", false, "compute the sha1 digest of all outputs")
-
-// missing an outputer that takes care of "error codes"
-
-var help = flag.Bool("h", false, "Print this help.")
-
-func usage() {
-	fmt.Printf(`USAGE %s [-options] <command> <args...>
+const (
+	Usage = `USAGE %[1]s [-options] <command> <args...>
 			
 DESCRIPTION:
 
@@ -33,12 +18,34 @@ DESCRIPTION:
 
 OPTIONS:
 	
-`, os.Args[0])
+`
+	Example = `
+EXAMPLE
+
+%[1]s git status -s
+`
+)
+
+// the main that run a command on all sub commands
+var (
+	async = flag.Bool("a", false, "Controls the execution mode.\n           '-a' or '-a=true' run commands asynchronously.\n           '-a=false' of by default run commands sequentially.")
+	list  = flag.Bool("l", false, "Dry mode just list the repositories.")
+
+	// output selection
+	cat    = flag.Bool("cat", false, "concatenate outputs, and print it")
+	sum    = flag.Bool("sum", false, "parse each output as a number and print out the total")
+	count  = flag.Bool("count", false, "count different outputs, and prints the resulting histogram")
+	digest = flag.Bool("digest", false, "compute the sha1 digest of all outputs")
+
+	// missing an outputer that takes care of "error codes"
+
+	help = flag.Bool("h", false, "Print this help.")
+)
+
+func usage() {
+	fmt.Printf(Usage, os.Args[0])
 	flag.PrintDefaults()
-
-	fmt.Println("\nEXAMPLE:\n")
-
-	fmt.Printf("'%s git status -s'\n", os.Args[0])
+	fmt.Printf(Example, os.Args[0])
 }
 
 func main() {

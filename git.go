@@ -23,6 +23,18 @@ func GitBranch(prj string) (branch string, err error) {
 	return result, nil
 }
 
+//GitPull automate the pull with ff only option
+func GitPull(prj string) (result string, err error) {
+	cmd := exec.Command("git", "pull", "--ff-only")
+	cmd.Dir = prj
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return
+	}
+	result = strings.Trim(string(out), defaultTrimCut)
+	return result, nil
+}
+
 //GitClone clone a repo
 func GitClone(wd, rel, remote, branch string) (result string, err error) {
 	cmd := exec.Command("git", "clone", remote, "-b", branch, rel)
