@@ -77,7 +77,8 @@ var (
 	list     = flag.Bool("list", false, "print out subrepositories present in the working directory, in the .sbr format")
 	prune    = flag.Bool("prune", false, "actually prune extraneous subrepositories")
 	clone    = flag.Bool("clone", false, "actually clone missing subrepositories")
-	reverse  = flag.Bool("update", false, "update dependency file, based on information found in the working dir")
+	update   = flag.Bool("update", false, "update dependency file, based on information found in the working dir")
+	initf    = flag.Bool("init", false, "alias for -update -clone, on an empty directory will just create the .sbr file.")
 	dotmrepo = flag.String("s", ".sbr", "override default dependency filename")
 	// workingdir = flag.String("wd", ".", "path to be used as working dir")
 	help = flag.Bool("h", false, "Print this help.")
@@ -91,6 +92,9 @@ func usage() {
 
 func main() {
 	flag.Parse()
+	if *initf {
+		*update, *clone = true, true
+	}
 
 	if *help {
 		usage()
@@ -111,7 +115,7 @@ func main() {
 		// and just print it out
 		current.Print(os.Stdout)
 
-	case *reverse:
+	case *update:
 		// the output will be fully tabbed
 		w := tabwriter.NewWriter(os.Stdout, 3, 8, 3, ' ', 0)
 		del, ins := workspace.WorkingDirPatches()
