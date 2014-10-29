@@ -7,7 +7,7 @@ What is mrepo for ?
 
   - `mrepo` is a programming library to deal with 'workspaces' that contains several git repositories, called 'subrepository'
   - `a` is a command line tool, to run arbitrary command, on each subrepository.
-  - `sbr` is a command line tool, to synchronize subrepositories between the working directory and a file (.sbr).
+  - `sbr` is a command line tool, to synchronize subrepositories between the working directory and a local .sbr file.
 
 
 ## `a`
@@ -62,7 +62,8 @@ Manage two sets of subrepositories:
 
 A subrepository is fully defined by:
 
-  - path (relative and working dir path)
+  - the absolute path of the working directory it is in.
+  - the relative path of the project within the working directory.
   - remote: git remote url `git config --get remote.origin.url`
   - branch: the current branch : `git rev-parse --abbrev-ref HEAD`
 
@@ -156,9 +157,9 @@ The third, will apply changes (fast forward only (this should be the case for a 
 
 If you have [Go](http://golang.org) installed 
 
-    go get github.com/ericaro/mrepo
+    go get github.com/ericaro/mrepo/{a,sbr}
 
-you will get in `$GOPATH/bin` the `a`, and `git-deps` commands. try them with `a -h` or `git deps -h`
+you will get in `$GOPATH/bin` the `a`, and `sbr` commands. try them with `a -h` or `sbr -h`
 
 # License
 

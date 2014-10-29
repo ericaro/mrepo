@@ -49,7 +49,7 @@ EXAMPLES:
 
   - Init a workspace:
 
-	$ sbr -update -clone
+	$ sbr -init
 
   Fills the .sbr file with subrepositories found on the working dir.
 
