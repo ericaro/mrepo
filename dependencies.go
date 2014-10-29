@@ -23,33 +23,79 @@ type Dependency struct {
 	branch string
 }
 
-//DependencyPrinter simply print out the information, in a tabular way.
-func DependencyPrinter(sources <-chan Dependency) {
-	w := tabwriter.NewWriter(os.Stdout, 3, 8, 3, ' ', 0)
-
-	for d := range sources {
-		fmt.Fprintf(w, "%s\t%s\t%s\n", d.rel, d.remote, d.branch)
-	}
-	w.Flush()
+func (d *Dependency) Rel() string {
+	return d.rel
 }
 
-//DependencyPrinter simply print out the information, in a tabular way.
-func MrepoFormat(sources <-chan Dependency) {
-	w := tabwriter.NewWriter(os.Stdout, 3, 8, 3, ' ', 0)
+//Dependencies represent a set of dependencies. Dependencies are always stored in path order.
+type Dependencies []Dependency
 
-	for d := range sources {
+func (a Dependencies) Len() int           { return len(a) }
+func (a Dependencies) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a Dependencies) Less(i, j int) bool { return a[i].rel < a[j].rel }
+
+//DependencyPrinter simply print out the information, in a tabular way.
+func (d *Dependencies) FormatMrepo(out io.Writer) {
+	sources := *d
+	w := tabwriter.NewWriter(out, 3, 8, 3, ' ', 0)
+	for _, d := range sources {
 		fmt.Fprintf(w, "git\t%q\t%q\t%q\n", d.rel, d.remote, d.branch)
 	}
 	w.Flush()
 }
 
-//Cloner clones dependencies
+//Add append a bunch of dependencies to 'd'
+func (d *Dependencies) Add(ins Dependencies, apply bool, w io.Writer) (changed bool) {
+	sources := *d
+	res := "Dry Run"
+	if apply {
+		res = "Applied"
+	}
+	for _, d := range ins {
+		if apply {
+			sources = append(sources, d)
+			changed = true
+		}
+		fmt.Fprintf(w, "clone\t%s\t%s\t%s\t%s\n", d.rel, d.remote, d.branch, res)
+	}
+	*d = sources
+	return
+}
+
+//Remove Dependencies from 'd'
+// apply make this method act like a dry run
+func (d *Dependencies) Remove(del Dependencies, apply bool, w io.Writer) (changed bool) {
+	sources := *d
+	deleted := dependencyIndex(del)
+	result := "Dry Run"
+	if apply {
+		result = "Applied"
+	}
+
+	j := 0
+	for i, d := range sources {
+		if _, del := deleted[d.rel]; !del { // we simply copy the values, deletion is just an offset in fact
+			if i != j && apply { // if apply is false, then sources will never be changed
+				sources[j] = sources[i]
+				changed = true
+			}
+			j++
+		} else { // to be deleted
+			fmt.Fprintf(w, "prune\t%s\t%s\t%s\t%s\n", d.rel, d.remote, d.branch, result)
+		}
+	}
+	*d = sources[0:j]
+	return
+}
+
+//Clone dependencies into the working directory.
 // if apply = false: only a dry run is printed out
 // otherwise the operation is made, and printed out.
 // results are printed using a tabular format into 'w'
-func Cloner(sources <-chan Dependency, apply bool, w io.Writer) {
+func (d *Dependencies) Clone(apply bool, w io.Writer) {
+	sources := *d
 	var waiter sync.WaitGroup // to wait for all commands to return
-	for d := range sources {
+	for _, d := range sources {
 		// check if I need to clone
 		info, err := os.Stat(filepath.Join(d.wd, d.rel))
 		if err == nil && !info.IsDir() {
@@ -79,14 +125,14 @@ func Cloner(sources <-chan Dependency, apply bool, w io.Writer) {
 	waiter.Wait()
 }
 
-//Pruner prunes  dependencies
+//Prune  dependencies from the working directory.
 // if apply == false, then only a dry run is printed out.
 // otherwise, actually remove the dependency and prints the result
 // reults are printed using a tabular format into 'w'
-func Pruner(sources <-chan Dependency, apply bool, w io.Writer) {
-
+func (d *Dependencies) Prune(apply bool, w io.Writer) {
+	sources := *d
 	var waiter sync.WaitGroup // to wait for all commands to return
-	for d := range sources {
+	for _, d := range sources {
 		// if I need to, I will clone
 		path := filepath.Join(d.wd, d.rel)
 		_, err := os.Stat(path)
@@ -113,42 +159,35 @@ func Pruner(sources <-chan Dependency, apply bool, w io.Writer) {
 	waiter.Wait()
 }
 
-//Diff reads target chan of dependency and current one, an generates two chan
-// one for the insertion to be made to current to be equal to target
-// one for the deletion to be made to current to be equal to target
+//Diff compute the changes to be applied to 'current', in order to became target.
+// updates are not handled, just insertion, and deletion.
 //later, maybe we'll add update for branches
-func Diff(target, current <-chan Dependency) (insertion, deletion <-chan Dependency) {
-	targets := make(map[string]Dependency, 100)
-	currents := make(map[string]Dependency, 100)
+func (current Dependencies) Diff(target Dependencies) (insertion, deletion Dependencies) {
+	ins, del := make([]Dependency, 0, 100), make([]Dependency, 0, 100)
+	targets := dependencyIndex(target)
+	currents := dependencyIndex(current)
 
-	ins, del := make(chan Dependency), make(chan Dependency)
-	go func() {
-
-		//first flush the targets and currents
-		for x := range target {
-			targets[x.rel] = x
+	//then compute the diffs
+	for id, t := range targets { // for each target
+		_, exists := currents[id]
+		if !exists { // if missing , create an insert
+			ins = append(ins, t)
 		}
-		for x := range current {
-			currents[x.rel] = x
+	}
+	for id, c := range currents { // for each current
+		_, exists := targets[id]
+		if !exists { // locally exists, but not in target, it's a deletion
+			del = append(del, c)
 		}
-
-		//then compute the diffs
-
-		for id, t := range targets { // for each target
-			_, exists := currents[id]
-			if !exists { // if missing , create an insert
-				ins <- t
-			}
-		}
-		close(ins)
-
-		for id, c := range currents { // for each current
-			_, exists := targets[id]
-			if !exists { // locally exists, but not in target, it's a deletion
-				del <- c
-			}
-		}
-		close(del)
-	}()
+	}
 	return ins, del
+}
+
+//dependencyIndex build up a small index of Dependency based on their .rel attribute.
+func dependencyIndex(deps []Dependency) map[string]Dependency {
+	i := make(map[string]Dependency, 100)
+	for _, x := range deps {
+		i[x.rel] = x
+	}
+	return i
 }

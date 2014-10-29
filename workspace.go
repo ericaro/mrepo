@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -24,14 +25,21 @@ import (
 // whereas async execution does not.
 // async mode is required for statistical postprocessors.
 type Workspace struct {
-	wd string //current working dir
+	wd             string       //current working dir
+	mrepofilename  string       // the .mrepo filename (by default .mrepo)
+	dependencyFile Dependencies // dependencies as declared in the .mrepo
+	dependencies   Dependencies // dependencies as found in the workspace.
 }
 
 //NewWorkspace creates a new Workspace for a working dir.
 func NewWorkspace(wd string) *Workspace {
 	return &Workspace{
-		wd: wd,
+		wd:            wd,
+		mrepofilename: ".mrepo",
 	}
+}
+func (x *Workspace) Getwd() string {
+	return x.wd
 }
 
 //relpath computes the relative path of a subrepository
@@ -122,12 +130,13 @@ func (x *Workspace) Exec(command string, args ...string) <-chan Execution {
 }
 
 //ExecQuery runs git queries for path, remote url, and branch on each subrepository, and then pushes the result for in a chan of Dependency
-func (x *Workspace) ExecQuery() <-chan Dependency {
-	dependencies := make(chan Dependency)
-	go func() {
+func (x *Workspace) DependencyWorkingDir() Dependencies {
+
+	if x.dependencies == nil {
+
+		dependencies := make(Dependencies, 0, 100)
 
 		for prj := range x.Scan() {
-
 			branch, err := GitBranch(prj)
 			if err != nil {
 				log.Fatalf("err getting branch %s", err.Error())
@@ -138,39 +147,74 @@ func (x *Workspace) ExecQuery() <-chan Dependency {
 			}
 			rel := x.relpath(prj)
 			if rel != "." {
-				dependencies <- Dependency{
+				dependencies = append(dependencies, Dependency{
 					wd:     x.wd,
 					rel:    rel,
 					remote: origin,
 					branch: branch,
-				}
+				})
 			}
 		}
-		//wait and close in a remote so that the main thread ends with the end of processing
-		close(dependencies)
-	}()
+		sort.Sort(dependencies)
+		x.dependencies = dependencies
+	}
+	return x.dependencies
+}
+
+//DependencyFile returns a set of Dependencies, as declared in the .mrepo file
+func (x *Workspace) DependencyFile() (dependencies Dependencies) {
+	if x.dependencies == nil {
+		file, err := os.Open(x.mrepofilename)
+		if err == nil {
+			defer file.Close()
+			x.dependencyFile = x.parseDependencies(file) // for now, just parse
+		} else {
+			if os.IsNotExist(err) {
+				fmt.Printf("dependency file %q does not exists. Skipping\n", x.mrepofilename)
+			} else {
+				fmt.Printf("Error reading dependency file %q: %s", x.mrepofilename, err.Error())
+			}
+		}
+	}
+	return x.dependencyFile
+}
+
+//ParseDependencies scans 'r' and fill []Dependency
+func (p *Workspace) parseDependencies(r io.Reader) Dependencies {
+	var err error
+
+	dependencies := make([]Dependency, 0, 100)
+	for err == nil {
+		var kind string
+		d := Dependency{wd: p.wd}
+		// I can do better than Fscanf
+		_, err = fmt.Fscanf(r, "%s %q %q %q\n", &kind, &d.rel, &d.remote, &d.branch)
+		if err == nil {
+			dependencies = append(dependencies, d)
+		}
+	}
+	if err != io.EOF {
+		log.Fatalf("Error while reading .mrepo: %s", err.Error())
+	}
 	return dependencies
 }
 
-//ParseDependencies scans 'r' and fill <-chan Dependency
-func (p *Workspace) ParseDependencies(r io.Reader) <-chan Dependency {
-	dependencies := make(chan Dependency)
-	go func() {
+func (x *Workspace) WriteDependencyFile(dependencies Dependencies) {
+	f, err := os.OpenFile(x.mrepofilename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+	if err != nil {
+		fmt.Printf("Cannot write dependency file: %s", err.Error())
+		return
+	}
+	defer f.Close()
+	sort.Sort(dependencies)
+	dependencies.FormatMrepo(f)
+}
 
-		var err error
-
-		for err == nil {
-			var kind string
-			d := Dependency{wd: p.wd}
-			_, err = fmt.Fscanf(r, "%s %q %q %q\n", &kind, &d.rel, &d.remote, &d.branch)
-			if err == nil {
-				dependencies <- d
-			}
-		}
-		close(dependencies) //done parsing
-		if err != io.EOF {
-			log.Fatalf("Error while reading .mrepo", err.Error())
-		}
-	}()
-	return dependencies
+//WorkingDirUpdates compare dependencies in the mrepo file with the one in the working dir.
+// computes the changes to applied to the working dir, so that both are equals.
+func (w *Workspace) WorkingDirUpdates() (ins, del Dependencies) {
+	target := w.DependencyFile()
+	current := w.DependencyWorkingDir()
+	ins, del = current.Diff(target)
+	return
 }
