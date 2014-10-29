@@ -10,32 +10,31 @@ import (
 	"text/tabwriter"
 )
 
-//this files contains functions that deals with chan Dependency
+//this files contains functions that deals with subrepositories
 
-//DependencyProcessor type is called on Dependency to deal with them.
-type DependencyProcessor func(prj <-chan Dependency)
-
-//Dependency type contains all the information about each subrepository.
-type Dependency struct {
-	wd     string
+//Subrepository type contains all the information about a subrepository.
+type Subrepository struct {
+	wd     string // absolute path for the working dir
 	rel    string //relative path for the project
 	remote string
 	branch string
 }
 
-func (d *Dependency) Rel() string {
+//Rel returns this project's relative path.
+func (d *Subrepository) Rel() string {
 	return d.rel
 }
 
-//Dependencies represent a set of dependencies. Dependencies are always stored in path order.
-type Dependencies []Dependency
+//Subrepositories represent a set of subrepositories.
+// Subrepositories are always stored sorted by "rel"
+type Subrepositories []Subrepository
 
-func (a Dependencies) Len() int           { return len(a) }
-func (a Dependencies) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a Dependencies) Less(i, j int) bool { return a[i].rel < a[j].rel }
+func (a Subrepositories) Len() int           { return len(a) }
+func (a Subrepositories) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a Subrepositories) Less(i, j int) bool { return a[i].rel < a[j].rel }
 
 //DependencyPrinter simply print out the information, in a tabular way.
-func (d *Dependencies) FormatMrepo(out io.Writer) {
+func (d *Subrepositories) Print(out io.Writer) {
 	sources := *d
 	w := tabwriter.NewWriter(out, 3, 8, 3, ' ', 0)
 	for _, d := range sources {
@@ -44,8 +43,8 @@ func (d *Dependencies) FormatMrepo(out io.Writer) {
 	w.Flush()
 }
 
-//Add append a bunch of dependencies to 'd'
-func (d *Dependencies) Add(ins Dependencies, apply bool, w io.Writer) (changed bool) {
+//Add append a bunch of subrepositories to 'd'
+func (d *Subrepositories) Add(ins Subrepositories, apply bool, w io.Writer) (changed bool) {
 	sources := *d
 	res := "Dry Run"
 	if apply {
@@ -62,11 +61,11 @@ func (d *Dependencies) Add(ins Dependencies, apply bool, w io.Writer) (changed b
 	return
 }
 
-//Remove Dependencies from 'd'
+//Remove subrepositories from 'd'
 // apply make this method act like a dry run
-func (d *Dependencies) Remove(del Dependencies, apply bool, w io.Writer) (changed bool) {
+func (d *Subrepositories) Remove(del Subrepositories, apply bool, w io.Writer) (changed bool) {
 	sources := *d
-	deleted := dependencyIndex(del)
+	deleted := indexSbr(del)
 	result := "Dry Run"
 	if apply {
 		result = "Applied"
@@ -88,11 +87,11 @@ func (d *Dependencies) Remove(del Dependencies, apply bool, w io.Writer) (change
 	return
 }
 
-//Clone dependencies into the working directory.
+//Clone subrepositories into the working directory.
 // if apply = false: only a dry run is printed out
 // otherwise the operation is made, and printed out.
 // results are printed using a tabular format into 'w'
-func (d *Dependencies) Clone(apply bool, w io.Writer) {
+func (d *Subrepositories) Clone(apply bool, w io.Writer) {
 	sources := *d
 	var waiter sync.WaitGroup // to wait for all commands to return
 	for _, d := range sources {
@@ -105,7 +104,7 @@ func (d *Dependencies) Clone(apply bool, w io.Writer) {
 
 		if os.IsNotExist(err) { // I need to create one
 			waiter.Add(1)
-			go func(d Dependency) {
+			go func(d Subrepository) {
 				defer waiter.Done()
 				if apply {
 					result, err := GitClone(d.wd, d.rel, d.remote, d.branch)
@@ -125,11 +124,11 @@ func (d *Dependencies) Clone(apply bool, w io.Writer) {
 	waiter.Wait()
 }
 
-//Prune  dependencies from the working directory.
+//Prune dependencies from the working directory.
 // if apply == false, then only a dry run is printed out.
 // otherwise, actually remove the dependency and prints the result
 // reults are printed using a tabular format into 'w'
-func (d *Dependencies) Prune(apply bool, w io.Writer) {
+func (d *Subrepositories) Prune(apply bool, w io.Writer) {
 	sources := *d
 	var waiter sync.WaitGroup // to wait for all commands to return
 	for _, d := range sources {
@@ -139,7 +138,7 @@ func (d *Dependencies) Prune(apply bool, w io.Writer) {
 		if !os.IsNotExist(err) { // it exists
 			//schedule a deletion
 			waiter.Add(1)
-			go func(d Dependency) {
+			go func(d Subrepository) {
 				defer waiter.Done()
 				if apply {
 
@@ -162,10 +161,10 @@ func (d *Dependencies) Prune(apply bool, w io.Writer) {
 //Diff compute the changes to be applied to 'current', in order to became target.
 // updates are not handled, just insertion, and deletion.
 //later, maybe we'll add update for branches
-func (current Dependencies) Diff(target Dependencies) (insertion, deletion Dependencies) {
-	ins, del := make([]Dependency, 0, 100), make([]Dependency, 0, 100)
-	targets := dependencyIndex(target)
-	currents := dependencyIndex(current)
+func (current Subrepositories) Diff(target Subrepositories) (insertion, deletion Subrepositories) {
+	ins, del := make([]Subrepository, 0, 100), make([]Subrepository, 0, 100)
+	targets := indexSbr(target)
+	currents := indexSbr(current)
 
 	//then compute the diffs
 	for id, t := range targets { // for each target
@@ -183,9 +182,9 @@ func (current Dependencies) Diff(target Dependencies) (insertion, deletion Depen
 	return ins, del
 }
 
-//dependencyIndex build up a small index of Dependency based on their .rel attribute.
-func dependencyIndex(deps []Dependency) map[string]Dependency {
-	i := make(map[string]Dependency, 100)
+//indexSbr build up a small index of Subrepository based on their .rel attribute.
+func indexSbr(deps []Subrepository) map[string]Subrepository {
+	i := make(map[string]Subrepository, 100)
 	for _, x := range deps {
 		i[x.rel] = x
 	}

@@ -1,15 +1,10 @@
 //Package mrepo is a programming library to deal with 'workspaces' that contains several git repositories, called 'subrepository'
 //
-// it scans a working directory, searching for subrepositories.
+// A Workspace can deal with two kinds of subrepositories:
 //
-// - it can then simply list the subrepositories
+// Subrepositories found in the working directory
 //
-// - it can execute a random command on each repository
+// Subrepositories declared in the Subrepositories file.
 //
-// - it can extract path, remote url, and current branch, on each repository and
-// process those dependencies.
-//
-//
-//
-//
+// It can start sequentially, or concurrently commands on each subrepository.
 package mrepo

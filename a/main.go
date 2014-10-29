@@ -74,7 +74,7 @@ func main() {
 		//for now there is only one way to print dependencies
 		//List just count and print all directories.
 		var count int
-		for prj := range workspace.Scan() {
+		for _, prj := range workspace.WorkingDirSubpath() {
 			count++
 			rel, err := filepath.Rel(wd, prj)
 			if err != nil {
@@ -112,11 +112,11 @@ func main() {
 			// we cannot just make "seq" a special case of concurrent, since when running sequentially we provide
 			// direct access to the std streams. commands can use stdin, and use term escape codes.
 			// When in async mode, we just can't do that.
-			executions := workspace.Exec(name, args...)
+			executions := workspace.ExecConcurrently(name, args...)
 			xp(executions)
 
 		} else {
-			workspace.ExecSync(name, args...)
+			workspace.ExecSequentially(name, args...)
 		}
 	}
 

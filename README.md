@@ -6,34 +6,34 @@
 What is mrepo for ?
 
   - `mrepo` is a programming library to deal with 'workspaces' that contains several git repositories, called 'subrepository'
-  - `az` is a command line tool, to run arbitrary command, on each subrepository.
-  - `git-deps` is a command line tool, to read all subrepositories path, remote and branch. Enough to recreate them, in fact.
+  - `a` is a command line tool, to run arbitrary command, on each subrepository.
+  - `sbr` is a command line tool, to synchronize subrepositories between the working directory and a file (.sbr).
 
 
-## `az`
+## `a`
 
 ### simple command
 
 Run a simple git command on each subrepository. 
 
-    az <command>
+    a <command>
 
 to run `<command>` on each subrepository
 
 For instance:
 
-    $ az git status -s
+    $ a git status -s
 
 
 ### simple async command
 
 Run each command in parallel:
 
-    az -a <command>
+    a -a <command>
 
 For instance:
 
-    $ az -a git fetch
+    $ a -a git fetch
 
 It's 10x faster, because `git fetch` spend lot of time waiting.
 
@@ -53,21 +53,25 @@ Collect each command response and print out a *summary* of those response.
 
 *caveat*: like for `-a` option, when using summary options, commands cannot be interactive.
 
-## git-deps
+## sbr
 
-Find all subrepositories of the current working dir, and extract their:
+Manage two sets of subrepositories:
 
-  - path
+  - actually in the working directory
+  - declared in the `.sbr` file
+
+A subrepository is fully defined by:
+
+  - path (relative and working dir path)
   - remote: git remote url `git config --get remote.origin.url`
   - branch: the current branch : `git rev-parse --abbrev-ref HEAD`
 
-By default, it prints this result.
 
-With `-makefile` option, it prints this result in a `Makefile` format.
+`sbr`, basically, computes the differences between the two sets, and:
 
-    <path>: ; git clone <remote> -b <branch> $@
+  - apply insertions (or deletions or both) on the working directory
+  - apply insertions (or deletions or both) on the `.sbr` file
 
-It is then easy to reproduce your workspace elsewhere ( other developpers, CI, build machine)
 
 # Examples
 
@@ -79,9 +83,9 @@ The git command:
 
 will give you the current branch.
 
-But what the branches distribution in the workspace ?
+But what is the branches distribution in the workspace ?
 
-    $ az -count git rev-parse --abbrev-ref HEAD
+    $ a -count git rev-parse --abbrev-ref HEAD
       24   dev
       12   master
     
@@ -102,12 +106,12 @@ will return HEAD's sha1.
 
 How can I compute a new sha1 that depends on each subrepository ?
 
-    $ az -digest git rev-parse HEAD
+    $ a -digest git rev-parse HEAD
     bb502cc5594cf1dd2f175942dfe2cdfea4961048
 
 Explanation:
 
-`az` will execute `git rev-parse HEAD` on each subrepository, in a deterministic order (alphabetically by path).
+`a` will execute `git rev-parse HEAD` on each subrepository, in a deterministic order (alphabetically by path).
 a new message is build by concatenating all outputs together, and its sha1 is computed.
 
 You have a version number for the workspace that depends on each subrepository version.
@@ -122,10 +126,10 @@ count the number of commit between HEAD and origin/master (telling you how much 
 
 What about all repositories ?
 
-    $ az -sum git  rev-list --count  dev...origin/dev
+    $ a -sum git  rev-list --count  dev...origin/dev
         0     foo
         4     bar
-        2     baz
+        2     ba
         __________
         30  
 
@@ -140,8 +144,8 @@ Generate a Dependencyfile
 On the CI side, you don't just need a pull on the main repository, you also need to clone new repositories:
 
     $ git deps -diff -clone -prune < Dependencyfile
-    $ az -a git fetch
-    $ az git merge --ff-only
+    $ a -a git fetch
+    $ a git merge --ff-only
 
 The first statement will clone missing subrepositories and prune old ones.
 The second will fetch all new stuff (asynchronously, so really fast, no possible conflict)
@@ -154,7 +158,7 @@ If you have [Go](http://golang.org) installed
 
     go get github.com/ericaro/mrepo
 
-you will get in `$GOPATH/bin` the `az`, and `git-deps` commands. try them with `az -h` or `git deps -h`
+you will get in `$GOPATH/bin` the `a`, and `git-deps` commands. try them with `a -h` or `git deps -h`
 
 # License
 
@@ -163,10 +167,9 @@ mrepo is available under the [Apache License, Version 2.0](http://www.apache.org
 # Branches
 
 
-I've dropped support for 1.0, because I'm using bufio.NewScanner() that was not in 1.0.
-
 master: [![Build Status](https://travis-ci.org/ericaro/mrepo.png?branch=master)](https://travis-ci.org/ericaro/mrepo) against go versions:
 
+  - 1.0
   - 1.1
   - 1.2
   - 1.3
@@ -174,6 +177,7 @@ master: [![Build Status](https://travis-ci.org/ericaro/mrepo.png?branch=master)]
 
 dev: [![Build Status](https://travis-ci.org/ericaro/mrepo.png?branch=dev)](https://travis-ci.org/ericaro/mrepo) against go versions:
 
+  - 1.0
   - 1.1
   - 1.2
   - 1.3

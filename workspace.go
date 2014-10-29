@@ -21,68 +21,38 @@ import (
 //
 // - read local subrepositories
 //
+// - read local .sbr file
+
+//
 // Caveat, sync execution passes stdin/out to the subprocess that runs the command, so it can run in interactive mode,
 // whereas async execution does not.
 // async mode is required for statistical postprocessors.
 type Workspace struct {
-	wd             string       //current working dir
-	mrepofilename  string       // the .mrepo filename (by default .mrepo)
-	dependencyFile Dependencies // dependencies as declared in the .mrepo
-	dependencies   Dependencies // dependencies as found in the workspace.
+	wd          string          //current working dir
+	sbrfilename string          // the .sbr filename (by default .sbr)
+	fileSbr     Subrepositories // subrepositories as declared in the .sbr
+	wdSbr       Subrepositories // subrepositories as found in the workspace.
 }
 
 //NewWorkspace creates a new Workspace for a working dir.
 func NewWorkspace(wd string) *Workspace {
 	return &Workspace{
-		wd:            wd,
-		mrepofilename: ".mrepo",
+		wd:          wd,
+		sbrfilename: ".sbr",
 	}
 }
-func (x *Workspace) Getwd() string {
+
+//Wd return the current working directory for this workspace.
+func (x *Workspace) Wd() string {
 	return x.wd
 }
 
-//relpath computes the relative path of a subrepository
-func (x *Workspace) relpath(subrepository string) string {
-	if filepath.IsAbs(subrepository) {
-		rel, err := filepath.Rel(x.wd, subrepository)
-		if err != nil {
-			fmt.Printf("prj does not appear to be in the current directory %s\n", err.Error())
-		}
-		return rel
-	}
-	return subrepository
-}
-
-//start a gorutine in charge of scanning the local repo AND return the chan that will contain it.
-func (x *Workspace) Scan() <-chan string {
-	prjc := make(chan string)
-	//the subrepo scanner function
-	walker := func(path string, f os.FileInfo, err error) error {
-		if f.IsDir() {
-			if f.Name() == ".git" {
-				// it's a repository file
-				prjc <- filepath.Dir(path)
-				//always skip the repository file
-				return filepath.SkipDir
-			}
-		}
-		return nil
-	}
-
-	go func() {
-		defer close(prjc)
-		filepath.Walk(x.wd, walker)
-	}()
-	return prjc
-}
-
-//ExecSync runs for each `subrepository` found by Scanner the  command `command` with arguments `args`
-// It passes the stdin, stdout, and stderr to the subprocess. and wait for the result.
-func (x *Workspace) ExecSync(command string, args ...string) {
+//ExecSequentially, for each `subrepository` in the working dir, execute the  command `command` with arguments `args`.
+// It passes the stdin, stdout, and stderr to the subprocess. and wait for the result, before moving to the next one.
+func (x *Workspace) ExecSequentially(command string, args ...string) {
 	var count int
 
-	for sub := range x.Scan() {
+	for _, sub := range x.WorkingDirSubpath() {
 		count++
 		rel := x.relpath(sub)
 		fmt.Printf("\033[00;32m%s\033[00m$ %s %s\n", rel, command, strings.Join(args, " "))
@@ -96,12 +66,12 @@ func (x *Workspace) ExecSync(command string, args ...string) {
 	fmt.Printf("Done (\033[00;32m%v\033[00m repositories)\n", count)
 }
 
-//Exec runs for each `subrepository` found by Scanner the  command `command` with arguments `args`.
-// Each command is executed concurrently, and the outputs are collected (both err, and out).
-func (x *Workspace) Exec(command string, args ...string) <-chan Execution {
+//ExecConcurently, for each `subrepository` in the working dir, execute the command `command` with arguments `args`.
+// Each command is executed in non interactive mode (no access to stdin/stdout)
+func (x *Workspace) ExecConcurrently(command string, args ...string) <-chan Execution {
 	executions := make(chan Execution)
 	var waiter sync.WaitGroup // to wait for all commands to return
-	for sub := range x.Scan() {
+	for _, sub := range x.WorkingDirSubpath() {
 		waiter.Add(1)
 
 		go func(sub string) {
@@ -129,14 +99,14 @@ func (x *Workspace) Exec(command string, args ...string) <-chan Execution {
 	return executions
 }
 
-//ExecQuery runs git queries for path, remote url, and branch on each subrepository, and then pushes the result for in a chan of Dependency
-func (x *Workspace) DependencyWorkingDir() Dependencies {
+//WorkingDirDependencies returns, or lazily compute, the Subrepositories found in the working dir.
+func (x *Workspace) WorkingDirSubrepositories() Subrepositories {
 
-	if x.dependencies == nil {
+	if x.wdSbr == nil {
 
-		dependencies := make(Dependencies, 0, 100)
+		wdSbr := make(Subrepositories, 0, 100)
 
-		for prj := range x.Scan() {
+		for _, prj := range x.WorkingDirSubpath() {
 			branch, err := GitBranch(prj)
 			if err != nil {
 				log.Fatalf("err getting branch %s", err.Error())
@@ -147,7 +117,7 @@ func (x *Workspace) DependencyWorkingDir() Dependencies {
 			}
 			rel := x.relpath(prj)
 			if rel != "." {
-				dependencies = append(dependencies, Dependency{
+				wdSbr = append(wdSbr, Subrepository{
 					wd:     x.wd,
 					rel:    rel,
 					remote: origin,
@@ -155,66 +125,97 @@ func (x *Workspace) DependencyWorkingDir() Dependencies {
 				})
 			}
 		}
-		sort.Sort(dependencies)
-		x.dependencies = dependencies
+		sort.Sort(wdSbr)
+		x.wdSbr = wdSbr
 	}
-	return x.dependencies
+	return x.wdSbr
 }
 
-//DependencyFile returns a set of Dependencies, as declared in the .mrepo file
-func (x *Workspace) DependencyFile() (dependencies Dependencies) {
-	if x.dependencies == nil {
-		file, err := os.Open(x.mrepofilename)
+//FileSubrepositories returns a set of Subrepositories, as declared in the .sbr file
+func (x *Workspace) FileSubrepositories() (wdSbr Subrepositories) {
+	if x.wdSbr == nil {
+		file, err := os.Open(x.sbrfilename)
 		if err == nil {
 			defer file.Close()
-			x.dependencyFile = x.parseDependencies(file) // for now, just parse
+			x.fileSbr = x.parseDependencies(file) // for now, just parse
 		} else {
 			if os.IsNotExist(err) {
-				fmt.Printf("dependency file %q does not exists. Skipping\n", x.mrepofilename)
+				fmt.Printf("dependency file %q does not exists. Skipping\n", x.sbrfilename)
 			} else {
-				fmt.Printf("Error reading dependency file %q: %s", x.mrepofilename, err.Error())
+				fmt.Printf("Error reading dependency file %q: %s", x.sbrfilename, err.Error())
 			}
 		}
 	}
-	return x.dependencyFile
+	return x.fileSbr
 }
 
-//ParseDependencies scans 'r' and fill []Dependency
-func (p *Workspace) parseDependencies(r io.Reader) Dependencies {
-	var err error
-
-	dependencies := make([]Dependency, 0, 100)
-	for err == nil {
-		var kind string
-		d := Dependency{wd: p.wd}
-		// I can do better than Fscanf
-		_, err = fmt.Fscanf(r, "%s %q %q %q\n", &kind, &d.rel, &d.remote, &d.branch)
-		if err == nil {
-			dependencies = append(dependencies, d)
-		}
-	}
-	if err != io.EOF {
-		log.Fatalf("Error while reading .mrepo: %s", err.Error())
-	}
-	return dependencies
-}
-
-func (x *Workspace) WriteDependencyFile(dependencies Dependencies) {
-	f, err := os.OpenFile(x.mrepofilename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+//WriteSubrepositoryFile write down the set of subrepositories into the default subrepositories file.
+func (x *Workspace) WriteSubrepositoryFile(wdSbr Subrepositories) {
+	f, err := os.OpenFile(x.sbrfilename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 	if err != nil {
 		fmt.Printf("Cannot write dependency file: %s", err.Error())
 		return
 	}
 	defer f.Close()
-	sort.Sort(dependencies)
-	dependencies.FormatMrepo(f)
+	sort.Sort(wdSbr)
+	wdSbr.Print(f)
 }
 
-//WorkingDirUpdates compare dependencies in the mrepo file with the one in the working dir.
-// computes the changes to applied to the working dir, so that both are equals.
-func (w *Workspace) WorkingDirUpdates() (ins, del Dependencies) {
-	target := w.DependencyFile()
-	current := w.DependencyWorkingDir()
+//WorkingDirPatches computes changes to be applied to the
+func (w *Workspace) WorkingDirPatches() (ins, del Subrepositories) {
+	target := w.FileSubrepositories()
+	current := w.WorkingDirSubrepositories()
 	ins, del = current.Diff(target)
 	return
+}
+
+//WorkingDirSubpath extract only the path of the subrepositories (faster than the whole dependency)
+func (x *Workspace) WorkingDirSubpath() []string {
+	prjc := make([]string, 0, 100)
+	//the subrepo scanner function
+	walker := func(path string, f os.FileInfo, err error) error {
+		if f.IsDir() {
+			if f.Name() == ".git" {
+				// it's a repository file
+				prjc = append(prjc, filepath.Dir(path))
+				//always skip the repository file
+				return filepath.SkipDir
+			}
+		}
+		return nil
+	}
+	filepath.Walk(x.wd, walker)
+	return prjc
+}
+
+//relpath computes the relative path of a subrepository
+func (x *Workspace) relpath(subrepository string) string {
+	if filepath.IsAbs(subrepository) {
+		rel, err := filepath.Rel(x.wd, subrepository)
+		if err != nil {
+			fmt.Printf("prj does not appear to be in the current directory %s\n", err.Error())
+		}
+		return rel
+	}
+	return subrepository
+}
+
+//parseDependencies scans 'r' and fill []Subrepository
+func (p *Workspace) parseDependencies(r io.Reader) Subrepositories {
+	var err error
+
+	wdSbr := make([]Subrepository, 0, 100)
+	for err == nil {
+		var kind string
+		d := Subrepository{wd: p.wd}
+		// I can do better than Fscanf
+		_, err = fmt.Fscanf(r, "%s %q %q %q\n", &kind, &d.rel, &d.remote, &d.branch)
+		if err == nil {
+			wdSbr = append(wdSbr, d)
+		}
+	}
+	if err != io.EOF {
+		log.Fatalf("Error while reading .sbr: %s", err.Error())
+	}
+	return wdSbr
 }

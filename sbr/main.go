@@ -16,29 +16,29 @@ DESCRIPTION:
 
   Manage git dependencies.
 
-  Find subrepositories in both the current directory and the .mrepo file.
+  Find subrepositories in both the current directory and the .sbr file.
 
   By default, it just list the differences between the two.
 	
-  Optionally, it is possible to actually clone and prune subrepository to match the definition in the .mrepo dependency file.
+  Optionally, it is possible to actually clone and prune subrepository to match the definition in the .sbr dependency file.
   	'-clone' will clone missing dependencies in the working dir.
   	'-prune' will remove extraneous dependencies from the working dir.
   
 
-  With '-update' the differences are presented the other way round, as changed to be applied the the .mrepo file. The meaning of
+  With '-update' the differences are presented the other way round, as changed to be applied the the .sbr file. The meaning of
   the options '-clone' and '-prune' is changed:
-  	'-clone' will append items to the current .mrepo file.
-  	'-prune' will remove items from .mrepo file.
+  	'-clone' will append items to the current .sbr file.
+  	'-prune' will remove items from .sbr file.
 
 
   With '-list', it only reads an prints the local subrepositories,
-  in the .mrepo format. So that, it is possible to just do:
+  in the .sbr format. So that, it is possible to just do:
 
-    $ mrepo -list > .mrepo
+    $ sbr -list > .sbr
 
   Which should be equivalent to:
 
-    $ mrepo -update -clone -prune
+    $ sbr -update -clone -prune
   
 
 OPTIONS:
@@ -47,29 +47,38 @@ OPTIONS:
 	Example = `
 EXAMPLES:
 
-  Getting started:
+  - Init a workspace:
 
-	$ mrepo --list > .mrepo
+	$ sbr -update -clone
 
-  You are now ready to share the .mrepo file (within your git workspace for instance). Other developper just need to:
+  Fills the .sbr file with subrepositories found on the working dir.
 
-	$ mrepo 
-
-  for a dry run. or 
+  - Add a dependency, via the .sbr file:
   
-	$ mrepo -clone -prune
+	$ echo ' git "src/ericaro/mrepo" "git@github.com:ericaro/mrepo.git" "dev"' >> .sbr
+	$ sbr -clone
   
-  for a full apply.
+  Clone in the working directory what need to be cloned. 
+  Note that the change in the .sbr file could be come from other developpers, via a git pull.
+
+  Add a subrepository, and update your .sbr:
+
+  	$ git clone git@github.com:ericaro/mrepo.git -b dev src/ericaro/mrepo
+	$ sbr -update -clone
+  
+  Now, your .sbr file contains the new dependency. Commit & Push it so teammate will be able to clone it too.
+
+
 
 `
 )
 
 var (
-	list     = flag.Bool("list", false, "print out subrepositories present in the working directory, in the .mrepo format")
+	list     = flag.Bool("list", false, "print out subrepositories present in the working directory, in the .sbr format")
 	prune    = flag.Bool("prune", false, "actually prune extraneous subrepositories")
 	clone    = flag.Bool("clone", false, "actually clone missing subrepositories")
 	reverse  = flag.Bool("update", false, "update dependency file, based on information found in the working dir")
-	dotmrepo = flag.String("s", ".mrepo", "override default dependency filename")
+	dotmrepo = flag.String("s", ".sbr", "override default dependency filename")
 	// workingdir = flag.String("wd", ".", "path to be used as working dir")
 	help = flag.Bool("h", false, "Print this help.")
 )
@@ -98,24 +107,24 @@ func main() {
 	switch {
 	case *list: // not diff mode, hence, plain local mode
 		// execute query on each subrepo
-		current := workspace.DependencyWorkingDir()
+		current := workspace.WorkingDirSubrepositories()
 		// and just print it out
-		current.FormatMrepo(os.Stdout)
+		current.Print(os.Stdout)
 
 	case *reverse:
 		// the output will be fully tabbed
 		w := tabwriter.NewWriter(os.Stdout, 3, 8, 3, ' ', 0)
-		del, ins := workspace.WorkingDirUpdates()
-		current := workspace.DependencyFile()
+		del, ins := workspace.WorkingDirPatches()
+		current := workspace.FileSubrepositories()
 		changed := current.Remove(del, *prune, w)
 		changed = current.Add(ins, *clone, w) || changed
 		if changed {
-			workspace.WriteDependencyFile(current)
+			workspace.WriteSubrepositoryFile(current)
 		}
 		w.Flush()
 
 	default:
-		ins, del := workspace.WorkingDirUpdates()
+		ins, del := workspace.WorkingDirPatches()
 		// the output will be fully tabbed
 		w := tabwriter.NewWriter(os.Stdout, 3, 8, 3, ' ', 0)
 		ins.Clone(*clone, w)
