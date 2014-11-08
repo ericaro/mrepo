@@ -131,8 +131,11 @@ func main() {
 		ins, del := workspace.WorkingDirPatches()
 		// the output will be fully tabbed
 		w := tabwriter.NewWriter(os.Stdout, 3, 8, 3, ' ', 0)
-		ins.Clone(*clone, w)
-		del.Prune(*prune, w)
+		cloneerror := ins.Clone(*clone, w)
+		pruneerror := del.Prune(*prune, w)
 		w.Flush()
+		if cloneerror != nil || pruneerror != nil {
+			os.Exit(-1)
+		}
 	}
 }

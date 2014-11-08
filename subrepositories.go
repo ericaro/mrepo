@@ -3,7 +3,6 @@ package mrepo
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -91,17 +90,17 @@ func (d *Subrepositories) Remove(del Subrepositories, apply bool, w io.Writer) (
 // if apply = false: only a dry run is printed out
 // otherwise the operation is made, and printed out.
 // results are printed using a tabular format into 'w'
-func (d *Subrepositories) Clone(apply bool, w io.Writer) {
+func (d *Subrepositories) Clone(apply bool, w io.Writer) error {
 	sources := *d
 	var waiter sync.WaitGroup // to wait for all commands to return
+	var cloneerror error
 	for _, d := range sources {
 		// check if I need to clone
 		info, err := os.Stat(filepath.Join(d.wd, d.rel))
 		if err == nil && !info.IsDir() {
 			// oups there is a file in the way
-			log.Fatalf("Cannot clone into %s, a file already exists.")
+			return fmt.Errorf("Cannot clone into %s, a file already exists.")
 		}
-
 		if os.IsNotExist(err) { // I need to create one
 			waiter.Add(1)
 			go func(d Subrepository) {
@@ -109,10 +108,13 @@ func (d *Subrepositories) Clone(apply bool, w io.Writer) {
 				if apply {
 					result, err := GitClone(d.wd, d.rel, d.remote, d.branch)
 					if err != nil {
-						log.Printf("Error during git clone", err.Error())
-						return
+						if cloneerror != nil { // keep the first error
+							cloneerror = err
+						}
+						fmt.Fprintf(w, "clone\t%s\t%s\t%s\t%s\t%s\n", d.rel, d.remote, d.branch, result, err.Error())
+					} else {
+						fmt.Fprintf(w, "clone\t%s\t%s\t%s\t%s\n", d.rel, d.remote, d.branch, result)
 					}
-					fmt.Fprintf(w, "clone\t%s\t%s\t%s\t%s\n", d.rel, d.remote, d.branch, result)
 				} else {
 					fmt.Fprintf(w, "clone\t%s\t%s\t%s\t%s\n", d.rel, d.remote, d.branch, "DRY RUN")
 				}
@@ -122,15 +124,17 @@ func (d *Subrepositories) Clone(apply bool, w io.Writer) {
 		}
 	}
 	waiter.Wait()
+	return cloneerror
 }
 
 //Prune dependencies from the working directory.
 // if apply == false, then only a dry run is printed out.
 // otherwise, actually remove the dependency and prints the result
 // reults are printed using a tabular format into 'w'
-func (d *Subrepositories) Prune(apply bool, w io.Writer) {
+func (d *Subrepositories) Prune(apply bool, w io.Writer) error {
 	sources := *d
 	var waiter sync.WaitGroup // to wait for all commands to return
+	var pruneerror error
 	for _, d := range sources {
 		// if I need to, I will clone
 		path := filepath.Join(d.wd, d.rel)
@@ -144,10 +148,10 @@ func (d *Subrepositories) Prune(apply bool, w io.Writer) {
 
 					err = os.RemoveAll(filepath.Join(d.wd, d.rel))
 					if err != nil {
-						log.Printf("Error while pruning tree. %s", err.Error())
-						return
+						fmt.Fprintf(w, "prune\t%s\t%s\t%s\t%s\t%s\n", d.rel, d.remote, d.branch, "Removing '"+d.rel+"'...", err.Error())
+					} else {
+						fmt.Fprintf(w, "prune\t%s\t%s\t%s\t%s\n", d.rel, d.remote, d.branch, "Removing '"+d.rel+"'...")
 					}
-					fmt.Fprintf(w, "prune\t%s\t%s\t%s\t%s\n", d.rel, d.remote, d.branch, "Removing '"+d.rel+"'...")
 				} else {
 					fmt.Fprintf(w, "prune\t%s\t%s\t%s\t%s\n", d.rel, d.remote, d.branch, "DRY RUN")
 				}
@@ -156,6 +160,7 @@ func (d *Subrepositories) Prune(apply bool, w io.Writer) {
 	}
 	//wait for all executions
 	waiter.Wait()
+	return pruneerror
 }
 
 //Diff compute the changes to be applied to 'current', in order to became target.

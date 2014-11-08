@@ -1,6 +1,7 @@
 package mrepo
 
 import (
+	"fmt"
 	"os/exec"
 	"strings"
 )
@@ -28,10 +29,10 @@ func GitPull(prj string) (result string, err error) {
 	cmd := exec.Command("git", "pull", "--ff-only")
 	cmd.Dir = prj
 	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return
-	}
 	result = strings.Trim(string(out), defaultTrimCut)
+	if err != nil {
+		return result, fmt.Errorf("failed to: %s$ git pull --ff-only : %s", prj, err.Error())
+	}
 	return result, nil
 }
 
@@ -40,10 +41,10 @@ func GitClone(wd, rel, remote, branch string) (result string, err error) {
 	cmd := exec.Command("git", "clone", remote, "-b", branch, rel)
 	cmd.Dir = wd
 	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return
-	}
 	result = strings.Trim(string(out), "\n \t")
+	if err != nil {
+		return result, fmt.Errorf("failed to git clone %s -b %s %s: %s", remote, branch, rel, err.Error())
+	}
 	return result, nil
 }
 
@@ -57,5 +58,17 @@ func GitRemoteOrigin(prj string) (origin string, err error) {
 		return
 	}
 	result := strings.Trim(string(out), defaultTrimCut)
+	return result, nil
+}
+
+//GitRevParseHead read the current commit sha1
+func GitRevParseHead(prj string) (result string, err error) {
+	cmd := exec.Command("git", "rev-parse", "HEAD")
+	cmd.Dir = prj
+	out, err := cmd.CombinedOutput()
+	result = strings.Trim(string(out), defaultTrimCut)
+	if err != nil {
+		return result, fmt.Errorf("failed to: %s$ git rev-parse HEAD : %s", prj, err.Error())
+	}
 	return result, nil
 }

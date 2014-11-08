@@ -134,7 +134,7 @@ func (x *Workspace) WorkingDirSubrepositories() Subrepositories {
 //FileSubrepositories returns a set of Subrepositories, as declared in the .sbr file
 func (x *Workspace) FileSubrepositories() (wdSbr Subrepositories) {
 	if x.wdSbr == nil {
-		file, err := os.Open(x.sbrfilename)
+		file, err := os.Open(filepath.Join(x.wd, x.sbrfilename))
 		if err == nil {
 			defer file.Close()
 			x.fileSbr = x.parseDependencies(file) // for now, just parse
