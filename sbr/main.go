@@ -47,15 +47,15 @@ OPTIONS:
 	Example = `
 EXAMPLES:
 
-  - Init a workspace:
+  - Init a workspace with git subrepositories:
 
 	$ sbr -init
 
-  Fills the .sbr file with subrepositories found on the working dir.
+  It fills the .sbr file with subrepositories found on the working dir.
 
   - Add a dependency, via the .sbr file:
   
-	$ echo ' git "src/ericaro/mrepo" "git@github.com:ericaro/mrepo.git" "dev"' >> .sbr
+	$ echo 'git "src/ericaro/mrepo" "git@github.com:ericaro/mrepo.git" "dev"' >> .sbr
 	$ sbr -clone
   
   Clone in the working directory what need to be cloned. 
