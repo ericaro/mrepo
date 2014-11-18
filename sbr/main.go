@@ -20,14 +20,14 @@ DESCRIPTION:
 
   It manages two sets of subrepositories:
   
-    - ".sbr": set made of subrepositories declarations in '.%[1]s' file
-    - "disk": set made of actually subrepositories in current directory hierarchy
+    - ".%[1]s": set made of subrepositories declarations in '.%[1]s' file
+    - "disk": set made of actual subrepositories in the current directory hierarchy
   
 
   <command> can be:
 
     - describe: print the "disk" dependency set
-    - compare : diff ".sbr" and "disk" sets. In the form of operations to apply to ".sbr" set.
+    - compare : diff ".%[1]s" and "disk" sets. In the form of operations to apply to ".%[1]s" set.
     - reflect : replace ".sbr" set by "disk" one.
     - apply   : apply ".sbr" dependencies to the current working dir (prune and clone)
     - merge   : edit two sets in meld.
@@ -41,14 +41,14 @@ EXAMPLES:
   - Print out all dependencies present in a workspace:
 	  $ %[1]s describe
 
-  - Init a .sbr to reflect the current working dir:
+  - Init a .%[1]s to reflect the current working dir:
 	  $ %[1]s reflect
     
   - Add a subrepository as usual, and update your .%[1]s:
       $ git clone git@github.com:ericaro/mrepo.git -b dev src/ericaro/mrepo
       $ %[1]s reflect
 
-  - Apply .deps changes to the working dir:
+  - Apply .%[1]s changes to the working dir:
       $ %[1]s apply
 
 `
