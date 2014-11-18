@@ -46,6 +46,9 @@ func NewWorkspace(wd string) *Workspace {
 func (x *Workspace) Wd() string {
 	return x.wd
 }
+func (x *Workspace) Sbrfile() string {
+	return filepath.Join(x.wd, x.sbrfilename)
+}
 
 //ExecSequentially, for each `subrepository` in the working dir, execute the  command `command` with arguments `args`.
 // It passes the stdin, stdout, and stderr to the subprocess. and wait for the result, before moving to the next one.
@@ -151,17 +154,22 @@ func (x *Workspace) FileSubrepositories() (wdSbr Subrepositories) {
 
 //WriteSubrepositoryFile write down the set of subrepositories into the default subrepositories file.
 func (x *Workspace) WriteSubrepositoryFile(wdSbr Subrepositories) {
-	f, err := os.OpenFile(x.sbrfilename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+	f, err := os.Create(x.sbrfilename)
 	if err != nil {
 		fmt.Printf("Cannot write dependency file: %s", err.Error())
 		return
 	}
 	defer f.Close()
+	WriteSubrepositoryTo(f, wdSbr)
+}
+func WriteSubrepositoryTo(file *os.File, wdSbr Subrepositories) {
 	sort.Sort(wdSbr)
-	wdSbr.Print(f)
+	for _, d := range wdSbr {
+		fmt.Fprintf(file, "%s\n", d.String())
+	}
 }
 
-//WorkingDirPatches computes changes to be applied to the
+//WorkingDirPatches computes changes to be applied to the working dir
 func (w *Workspace) WorkingDirPatches() (ins, del Subrepositories) {
 	target := w.FileSubrepositories()
 	current := w.WorkingDirSubrepositories()

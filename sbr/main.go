@@ -4,42 +4,33 @@ import (
 	"flag"
 	"fmt"
 	"github.com/ericaro/mrepo"
+	"io/ioutil"
 	"os"
+	"sync"
 	"text/tabwriter"
 )
 
 const (
 	Usage = `
-USAGE %s [-options]
+USAGE %[1]s [-options] <command> <args...>
 			
 DESCRIPTION:
 
-  Manage git dependencies.
+  %[1]s subrepositories manager for git dependencies.
 
-  Find subrepositories in both the current directory and the .sbr file.
-
-  By default, it just list the differences between the two.
-	
-  Optionally, it is possible to actually clone and prune subrepository to match the definition in the .sbr dependency file.
-  	'-clone' will clone missing dependencies in the working dir.
-  	'-prune' will remove extraneous dependencies from the working dir.
+  It manages two sets of subrepositories:
+  
+    - ".sbr": set made of subrepositories declarations in '.%[1]s' file
+    - "disk": set made of actually subrepositories in current directory hierarchy
   
 
-  With '-update' the differences are presented the other way round, as changed to be applied the the .sbr file. The meaning of
-  the options '-clone' and '-prune' is changed:
-  	'-clone' will append items to the current .sbr file.
-  	'-prune' will remove items from .sbr file.
+  <command> can be:
 
-
-  With '-list', it only reads an prints the local subrepositories,
-  in the .sbr format. So that, it is possible to just do:
-
-    $ sbr -list > .sbr
-
-  Which should be equivalent to:
-
-    $ sbr -update -clone -prune
-  
+    - describe: print the "disk" dependency set
+    - compare : diff ".sbr" and "disk" sets. In the form of operations to apply to ".sbr" set.
+    - reflect : replace ".sbr" set by "disk" one.
+    - apply   : apply ".sbr" dependencies to the current working dir (prune and clone)
+    - merge   : edit two sets in meld.
 
 OPTIONS:
 
@@ -47,38 +38,23 @@ OPTIONS:
 	Example = `
 EXAMPLES:
 
-  - Init a workspace with git subrepositories:
+  - Print out all dependencies present in a workspace:
+	  $ %[1]s describe
 
-	$ sbr -init
+  - Init a .sbr to reflect the current working dir:
+	  $ %[1]s reflect
+    
+  - Add a subrepository as usual, and update your .%[1]s:
+      $ git clone git@github.com:ericaro/mrepo.git -b dev src/ericaro/mrepo
+      $ %[1]s reflect
 
-  It fills the .sbr file with subrepositories found on the working dir.
-
-  - Add a dependency, via the .sbr file:
-  
-	$ echo 'git "src/ericaro/mrepo" "git@github.com:ericaro/mrepo.git" "dev"' >> .sbr
-	$ sbr -clone
-  
-  Clone in the working directory what need to be cloned. 
-  Note that the change in the .sbr file could be come from other developpers, via a git pull.
-
-  Add a subrepository, and update your .sbr:
-
-  	$ git clone git@github.com:ericaro/mrepo.git -b dev src/ericaro/mrepo
-	$ sbr -update -clone
-  
-  Now, your .sbr file contains the new dependency. Commit & Push it so teammate will be able to clone it too.
-
-
+  - Apply .deps changes to the working dir:
+      $ %[1]s apply
 
 `
 )
 
 var (
-	list     = flag.Bool("list", false, "print out subrepositories present in the working directory, in the .sbr format")
-	prune    = flag.Bool("prune", false, "actually prune extraneous subrepositories")
-	clone    = flag.Bool("clone", false, "actually clone missing subrepositories")
-	update   = flag.Bool("update", false, "update dependency file, based on information found in the working dir")
-	initf    = flag.Bool("init", false, "alias for -update -clone, on an empty directory will just create the .sbr file.")
 	dotmrepo = flag.String("s", ".sbr", "override default dependency filename")
 	// workingdir = flag.String("wd", ".", "path to be used as working dir")
 	help = flag.Bool("h", false, "Print this help.")
@@ -92,11 +68,8 @@ func usage() {
 
 func main() {
 	flag.Parse()
-	if *initf {
-		*update, *clone = true, true
-	}
 
-	if *help {
+	if flag.NArg() <= 0 || *help {
 		usage()
 		return
 	}
@@ -106,36 +79,114 @@ func main() {
 	if err != nil {
 		fmt.Printf("Error, cannot determine the current directory. %s\n", err.Error())
 	}
+	//creates a workspace to be able to read from/to sets
 	workspace := mrepo.NewWorkspace(wd)
-
+	cmd := flag.Arg(0)
 	switch {
-	case *list: // not diff mode, hence, plain local mode
+
+	case cmd == "describe": // not diff mode, hence, plain local mode
 		// execute query on each subrepo
 		current := workspace.WorkingDirSubrepositories()
 		// and just print it out
-		current.Print(os.Stdout)
-
-	case *update:
-		// the output will be fully tabbed
 		w := tabwriter.NewWriter(os.Stdout, 3, 8, 3, ' ', 0)
-		del, ins := workspace.WorkingDirPatches()
-		current := workspace.FileSubrepositories()
-		changed := current.Remove(del, *prune, w)
-		changed = current.Add(ins, *clone, w) || changed
-		if changed {
-			workspace.WriteSubrepositoryFile(current)
+		for _, d := range current {
+			fmt.Fprintf(w, "git\t%q\t%q\t%q\n", d.Rel(), d.Remote(), d.Branch())
 		}
 		w.Flush()
-
-	default:
-		ins, del := workspace.WorkingDirPatches()
-		// the output will be fully tabbed
-		w := tabwriter.NewWriter(os.Stdout, 3, 8, 3, ' ', 0)
-		cloneerror := ins.Clone(*clone, w)
-		pruneerror := del.Prune(*prune, w)
-		w.Flush()
-		if cloneerror != nil || pruneerror != nil {
+	case cmd == "merge":
+		//generate a temp file
+		current := workspace.WorkingDirSubrepositories()
+		f, err := ioutil.TempFile("", "sbr")
+		mrepo.WriteSubrepositoryTo(f, current)
+		f.Close() //no defer to open it up just after.
+		err = mrepo.Meld(workspace.Wd(), ".sbr set  |  disk set", workspace.Sbrfile(), f.Name())
+		if err != nil {
+			fmt.Printf("Meld returned with error: %s", err.Error())
 			os.Exit(-1)
 		}
+		// shall I apply ?
+
+	case cmd == "compare":
+
+		del, ins := workspace.WorkingDirPatches()
+		//WorkingDirPatches > (ins, del) are for the wd, here we are interested in the reverse
+		// so we permute the assignmeent
+		// therefore del are subrepo to be deleted from disk
+		// the output will be fully tabbed
+
+		w := tabwriter.NewWriter(os.Stdout, 3, 8, 3, ' ', 0)
+		fmt.Fprintf(w, ".sbr\tpath\tremote\tbranch\n")
+		for _, s := range del {
+			fmt.Fprintf(w, "\033[00;32mDEL\033[00m\t%s\t%s\t%s\n", s.Rel(), s.Remote(), s.Branch())
+		}
+		for _, s := range ins {
+			fmt.Fprintf(w, "\033[00;31mINS\033[00m\t%s\t%s\t%s\n", s.Rel(), s.Remote(), s.Branch())
+		}
+		w.Flush()
+
+	case cmd == "reflect":
+		//compute ins and del in the .sbr file
+		del, ins := workspace.WorkingDirPatches()
+		//WorkingDirPatches > (ins, del) are for the wd, here we are interested in the reverse
+		// so we permute the assignmeent
+		// therefore del are subrepo to be deleted from disk
+		// the output will be fully tabbed
+
+		//read ".sbr" content
+		current := workspace.FileSubrepositories()
+
+		current.RemoveAll(del)
+		current.AddAll(ins)
+
+		w := tabwriter.NewWriter(os.Stdout, 3, 8, 3, ' ', 0)
+		fmt.Fprintf(w, ".sbr\tpath\tremote\tbranch\n")
+		for _, s := range del {
+			fmt.Fprintf(w, "\033[00;32mDEL\033[00m\t%s\t%s\t%s\n", s.Rel(), s.Remote(), s.Branch())
+		}
+		for _, s := range ins {
+			fmt.Fprintf(w, "\033[00;31mINS\033[00m\t%s\t%s\t%s\n", s.Rel(), s.Remote(), s.Branch())
+		}
+		w.Flush()
+		//always rewrite the file
+		workspace.WriteSubrepositoryFile(current)
+		fmt.Printf("Done (\033[00;32m%v\033[00m INS) (\033[00;32m%v\033[00m DEL)\n", len(ins), len(del))
+
+	case cmd == "apply":
+		ins, del := workspace.WorkingDirPatches()
+		var waiter sync.WaitGroup // to wait for all commands to return
+		var delCount, cloneCount int
+		for _, sbr := range ins {
+			waiter.Add(1)
+			go func(d mrepo.Subrepository) {
+				defer waiter.Done()
+				_, err := d.Clone()
+				if err != nil {
+					fmt.Printf("\033[00;31mERR\033[00m  git clone %s -b %s %s:\n     %s\n", d.Rel(), d.Remote(), d.Branch(), d.Rel(), err.Error())
+				} else {
+					cloneCount++
+					fmt.Printf("     Cloning into '%s'...\n", d.Rel())
+				}
+			}(sbr)
+		}
+		for _, sbr := range del {
+			waiter.Add(1)
+			go func(d mrepo.Subrepository) {
+				defer waiter.Done()
+				err = sbr.Prune()
+				if err != nil {
+					fmt.Printf("\033[00;31mERR\033[00m  rm -Rf %s :\n     %s\n", d.Rel(), d.Rel(), err.Error())
+				} else {
+					delCount++
+					fmt.Printf("     Pruning '%s'...\n", d.Rel())
+				}
+			}(sbr)
+		}
+		waiter.Wait()
+		fmt.Printf("Done (\033[00;32m%v\033[00m CLONE) (\033[00;32m%v\033[00m PRUNE)\n", cloneCount, delCount)
+
+	default:
+		usage()
+		return
+
 	}
 }

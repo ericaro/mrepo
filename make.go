@@ -13,3 +13,10 @@ func Make(prj, target string, buf io.Writer) (err error) {
 	cmd.Stderr = buf
 	return cmd.Run()
 }
+
+//Meld invoke meld on the prj with the target as argument.
+func Meld(wd, title, file1, file2 string) (err error) {
+	cmd := exec.Command("meld", "-L", title, file1, file2)
+	cmd.Dir = wd
+	return cmd.Run()
+}
