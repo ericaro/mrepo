@@ -39,9 +39,8 @@ func (d *Subrepository) Clone() (result string, err error) {
 	_, err = os.Stat(filepath.Join(d.wd, d.rel))
 	if os.IsNotExist(err) { // I need to create one
 		return GitClone(d.wd, d.rel, d.remote, d.branch)
-	} else {
-		return "", fmt.Errorf("cannot clone into %s, destination path already exists.")
 	}
+	return "", fmt.Errorf("cannot clone into %s, destination path already exists.")
 }
 
 func (d *Subrepository) Prune() (err error) {
@@ -49,9 +48,8 @@ func (d *Subrepository) Prune() (err error) {
 	_, err = os.Stat(path)
 	if os.IsNotExist(err) { // it does not exists
 		return nil
-	} else {
-		return os.RemoveAll(filepath.Join(d.wd, d.rel))
 	}
+	return os.RemoveAll(filepath.Join(d.wd, d.rel))
 }
 
 //Subrepositories represent a set of subrepositories.
