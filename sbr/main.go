@@ -161,7 +161,7 @@ func main() {
 				defer waiter.Done()
 				_, err := d.Clone()
 				if err != nil {
-					fmt.Printf("\033[00;31mERR\033[00m  git clone %s -b %s %s:\n     %s\n", d.Rel(), d.Remote(), d.Branch(), d.Rel(), err.Error())
+					fmt.Printf("\033[00;31mERR\033[00m  git clone %s -b %s %s:\n     %s\n", d.Rel(), d.Remote(), d.Branch(), err.Error())
 				} else {
 					cloneCount++
 					fmt.Printf("     Cloning into '%s'...\n", d.Rel())
@@ -174,7 +174,7 @@ func main() {
 				defer waiter.Done()
 				err = sbr.Prune()
 				if err != nil {
-					fmt.Printf("\033[00;31mERR\033[00m  rm -Rf %s :\n     %s\n", d.Rel(), d.Rel(), err.Error())
+					fmt.Printf("\033[00;31mERR\033[00m  rm -Rf %s :\n     %s\n", d.Rel(), err.Error())
 				} else {
 					delCount++
 					fmt.Printf("     Pruning '%s'...\n", d.Rel())
