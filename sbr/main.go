@@ -1,11 +1,13 @@
 package main
 
 import (
+	"crypto/sha1"
 	"flag"
 	"fmt"
 	"github.com/ericaro/mrepo"
 	"io/ioutil"
 	"os"
+	"sort"
 	"sync"
 	"text/tabwriter"
 )
@@ -31,6 +33,7 @@ DESCRIPTION:
     - reflect : replace ".sbr" set by "disk" one.
     - apply   : apply ".sbr" dependencies to the current working dir (prune and clone)
     - merge   : edit two sets in meld.
+    - digest  : compute the sha1 of all the dependencies sha1.
 
 OPTIONS:
 
@@ -124,6 +127,31 @@ func main() {
 		}
 		w.Flush()
 
+	case cmd == "digest":
+
+		all := make([]string, 0, 100)
+		//get all path, and sort them in alpha order
+		for _, x := range workspace.WorkingDirSubpath() {
+			all = append(all, x)
+		}
+
+		sort.Sort(byName(all))
+
+		// now compute the sha1
+		h := sha1.New()
+		for _, x := range all {
+			// compute the sha1 for x
+			version, err := mrepo.GitRevParseHead(x)
+			if err != nil {
+				fmt.Printf("invalid subrepository, cannot compute current sha1: %s", err.Error())
+			} else {
+				fmt.Fprint(h, version)
+			}
+		}
+
+		v := h.Sum(nil)
+		fmt.Printf("%x\n", v)
+
 	case cmd == "reflect":
 		//compute ins and del in the .sbr file
 		del, ins := workspace.WorkingDirPatches()
@@ -190,3 +218,10 @@ func main() {
 
 	}
 }
+
+//byName to sort any slice of Execution by their Name !
+type byName []string
+
+func (a byName) Len() int           { return len(a) }
+func (a byName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byName) Less(i, j int) bool { return a[i] < a[j] }
