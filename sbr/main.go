@@ -8,9 +8,18 @@ import (
 	"io/ioutil"
 	"os"
 	"sort"
+	"strings"
 	"sync"
 	"text/tabwriter"
 )
+
+//    - update  : prune and pull disk to meet the requirements in .sbr
+//    - pull    : git pull top, update all, and git pull all
+//    - describe: print out the disk set
+//    - compare : print out the difference between requirements and disk
+//    - publish :
+//    - merge   :
+//    - version :
 
 const (
 	Usage = `
@@ -28,12 +37,13 @@ DESCRIPTION:
 
   <command> can be:
 
-    - describe: print the "disk" dependency set
+    - describe: print the "disk" set
     - compare : diff ".%[1]s" and "disk" sets. In the form of operations to apply to ".%[1]s" set.
-    - reflect : replace ".sbr" set by "disk" one.
+    - init    : replace ".%[1]s" set by "disk" one.
     - apply   : apply ".sbr" dependencies to the current working dir (prune and clone)
     - merge   : edit two sets in meld.
-    - digest  : compute the sha1 of all the dependencies sha1.
+    - version : compute the sha1 of all the dependencies sha1.
+    - refresh : pull top, apply .sbr and pull each subrepository
 
 OPTIONS:
 
@@ -87,7 +97,7 @@ func main() {
 	cmd := flag.Arg(0)
 	switch {
 
-	case cmd == "describe": // not diff mode, hence, plain local mode
+	case strings.HasPrefix("describe", cmd): // not diff mode, hence, plain local mode
 		// execute query on each subrepo
 		current := workspace.WorkingDirSubrepositories()
 		// and just print it out
@@ -96,7 +106,20 @@ func main() {
 			fmt.Fprintf(w, "git\t%q\t%q\t%q\n", d.Rel(), d.Remote(), d.Branch())
 		}
 		w.Flush()
-	case cmd == "merge":
+
+	case strings.HasPrefix("refresh", cmd):
+		err = workspace.PullTop(os.Stdout)
+		if err != nil {
+			fmt.Printf("Failed to pull top: %s", err.Error())
+			os.Exit(-1)
+		}
+		_, err = workspace.Refresh(os.Stdout)
+		if err != nil {
+			fmt.Printf("Failed to refresh: %s", err.Error())
+			os.Exit(-1)
+		}
+
+	case strings.HasPrefix("merge", cmd):
 		//generate a temp file
 		current := workspace.WorkingDirSubrepositories()
 		f, err := ioutil.TempFile("", "sbr")
@@ -109,7 +132,7 @@ func main() {
 		}
 		// shall I apply ?
 
-	case cmd == "compare":
+	case strings.HasPrefix("compare", cmd):
 
 		del, ins := workspace.WorkingDirPatches()
 		//WorkingDirPatches > (ins, del) are for the wd, here we are interested in the reverse
@@ -127,7 +150,7 @@ func main() {
 		}
 		w.Flush()
 
-	case cmd == "digest":
+	case strings.HasPrefix("version", cmd):
 
 		all := make([]string, 0, 100)
 		//get all path, and sort them in alpha order
@@ -152,7 +175,7 @@ func main() {
 		v := h.Sum(nil)
 		fmt.Printf("%x\n", v)
 
-	case cmd == "reflect":
+	case strings.HasPrefix("init", cmd):
 		//compute ins and del in the .sbr file
 		del, ins := workspace.WorkingDirPatches()
 		//WorkingDirPatches > (ins, del) are for the wd, here we are interested in the reverse

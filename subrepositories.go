@@ -34,13 +34,26 @@ func (d *Subrepository) String() string {
 	return fmt.Sprintf("git %q %q %q", d.rel, d.remote, d.branch)
 }
 
-func (d *Subrepository) Clone() (result string, err error) {
-	//trry to stat the directory
+func (d *Subrepository) Exists() (exists bool, err error) {
 	_, err = os.Stat(filepath.Join(d.wd, d.rel))
 	if os.IsNotExist(err) { // I need to create one
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (d *Subrepository) Clone() (result string, err error) {
+	exists, err := d.Exists()
+	if err != nil {
+		return "", fmt.Errorf("cannot test %s : %s", filepath.Join(d.wd, d.rel), err.Error())
+	}
+	if !exists {
 		return GitClone(d.wd, d.rel, d.remote, d.branch)
 	}
-	return "", fmt.Errorf("cannot clone into %s, destination path already exists.")
+	return "Ok", nil
 }
 
 func (d *Subrepository) Prune() (err error) {

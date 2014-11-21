@@ -1,13 +1,17 @@
 package mrepo
 
 import (
+	"fmt"
 	"io"
 	"os/exec"
 )
 
 //Make invoke make on the prj with the target as argument.
 func Make(prj, target string, buf io.Writer) (err error) {
-	cmd := exec.Command("make", target)
+
+	//because, I don't know why, but $(PWD) will return "os.Getwd" instead of prj
+	// I need to go through a bash
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("cd %s && make %s", prj, target))
 	cmd.Dir = prj
 	cmd.Stdout = buf
 	cmd.Stderr = buf
