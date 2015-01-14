@@ -23,7 +23,16 @@ func (wk *Workspace) PullTop(w io.Writer) (err error) {
 	return
 }
 
+//Refresh clone and prune
 func (wk *Workspace) Refresh(w io.Writer) (digest []byte, err error) {
+	return wk.refresh(w, true)
+}
+
+//Update only refresh or clone
+func (wk *Workspace) Update(w io.Writer) (digest []byte, err error) {
+	return wk.refresh(w, false)
+}
+func (wk *Workspace) refresh(w io.Writer, prune bool) (digest []byte, err error) {
 
 	// NB: this is  a mammoth function. I know it, but I wasn't able to
 	// split it down before having done everything.
@@ -56,22 +65,36 @@ func (wk *Workspace) Refresh(w io.Writer) (digest []byte, err error) {
 				}
 			}(sbr)
 		}
-		for _, sbr := range del {
-			waiter.Add(1)
-			go func(d Subrepository) {
-				defer waiter.Done()
-				err = sbr.Prune()
-				if err != nil {
-					fmt.Fprintf(w, "ERR  Pruning '%s'   : %q\n", d.Rel(), err.Error())
-					refresherrors = append(refresherrors, err)
-				} else {
-					delCount++
-					fmt.Fprintf(w, "     Pruning '%s'...\n", d.Rel())
-				}
-			}(sbr)
-		}
+		if prune {
+
+			for _, sbr := range del {
+				waiter.Add(1)
+				go func(d Subrepository) {
+					defer waiter.Done()
+					err = sbr.Prune()
+					if err != nil {
+						fmt.Fprintf(w, "ERR  Pruning '%s'   : %q\n", d.Rel(), err.Error())
+						refresherrors = append(refresherrors, err)
+					} else {
+						delCount++
+						fmt.Fprintf(w, "     Pruning '%s'...\n", d.Rel())
+					}
+				}(sbr)
+			}
+		} // no prune at all
+
 		waiter.Wait()
-		fmt.Fprintf(w, "%v CLONE, %v PRUNE\n\n", cloneCount, delCount)
+
+		// after all, if prune was false just print out the prune
+		if prune {
+			fmt.Fprintf(w, "%v CLONE, %v PRUNE\n\n", cloneCount, delCount)
+		} else {
+			for _, sbr := range del {
+				fmt.Fprintf(w, "     Would Prune %s %s %s\n", sbr.Rel(), sbr.Remote(), sbr.Branch())
+				delCount++
+			}
+			fmt.Fprintf(w, "%v CLONE, %v REQUIRED PRUNE\n\n", cloneCount, delCount)
+		}
 	}
 
 	// struct is ok ! update all

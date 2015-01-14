@@ -3,10 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/ericaro/mrepo"
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/ericaro/mrepo"
 )
 
 const (

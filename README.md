@@ -66,17 +66,16 @@ It manages two sets of subrepositories:
 
 ## Usage
 
-    sbr [-options] <command> <args...>
+    sbr <command> [options] <args...>
 
   <command> can be:
 
-  - *init*    : copy "disk" set into `.sbr` file
-  - *describe*: print the "disk" set
-  - *apply*   : apply ".sbr" dependencies to the current working dir (prune and clone where necessary)
-  - *refresh* : `git-pull`, `apply`, and `git-pull` on each subrepository.
-  - *compare* : diff ".sbr" and "disk" sets. In the form of operations to apply to ".sbr" set
-  - *merge*   : edit the two sets in meld
-  - *version* : compute the sha1 of each "disk" dependencies
+  - *version*   compute the sha1 of all dependencies' sha1
+  - *write*     write into '.sbr' to reflect directory changes
+  - *checkout*  pull top; clone new dependencies; pull all other dependencies (deprecated dependencie can be pruned using -f option)
+  - *compare*   list directories to be created or deleted
+  - *merge*     compare '.sbr' content and directory structure using 'meld'
+  - *clone*     clone a remote repository, and then checkout it's .sbr
 
 # Examples
 
@@ -88,7 +87,7 @@ The git command:
 
 will give you the current branch.
 
-But what is the branches distribution in the workspace ?
+But what is the branches distribution in all the workspace ?
 
     $ a -count git rev-parse --abbrev-ref HEAD
       24   dev
@@ -118,7 +117,7 @@ a new message is build by concatenating all outputs together, and its sha1 is co
 
 You have a version number for the workspace that depends on each subrepository version.
 
-`sbr` has it built in:
+`sbr` has the same feature built in:
 
     $ sbr digest
     bb502cc5594cf1dd2f175942dfe2cdfea4961048
@@ -143,30 +142,32 @@ What about all repositories ?
         __________
         30  
 
-## working with a CI
+## working as a team
 
 Generate a ".sbr" file
 
-    $ sbr reflect
+    $ sbr write
     $ git add .sbr
-    $ git commit -m "Added .sbr for my CI"
+    $ git commit -m "Added .sbr for my team"
+
+Then your teammate can pull it
+
+    $ sbr update
+
+  - It fully git-pull the local repository (using -ff-only)
+  - Then clone each "new" repository declared in the .sbr file
+  - Prune (with -f option) of  each "deprecated" repository removed from the .sbr file
+  - Pull each remaining dependencies
+
+## working with a CI
 
 On the CI side, you don't just need a pull on the main repository, you also need to clone all dependencies
 
-    $ sbr apply
-    $ a -a git fetch
-You have fully copied your workspace.
+    $ sbr refresh -f
 
 Whenever something new happens ?
 
-    $ git pull
-    $ sbr apply
-    $ a -a git fetch
-    $ a git merge --ff-only
-
-First statement is to pull the top repository
-
-
+    $ git refresh -f
 
 # Installation
 
@@ -181,7 +182,6 @@ you will get in `$GOPATH/bin` the `a`, and `sbr` commands. try them with `a -h` 
 mrepo is available under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.html).
 
 # Branches
-
 
 master: [![Build Status](https://travis-ci.org/ericaro/mrepo.png?branch=master)](https://travis-ci.org/ericaro/mrepo) against go versions:
 
