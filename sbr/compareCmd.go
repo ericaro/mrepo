@@ -19,6 +19,7 @@ func (c *compareCmd) Run(args []string) {
 	wd, err := os.Getwd()
 	if err != nil {
 		fmt.Printf("Error, cannot determine the current directory. %s\n", err.Error())
+		os.Exit(-1)
 	}
 	//creates a workspace to be able to read from/to sets
 	workspace := mrepo.NewWorkspace(wd)

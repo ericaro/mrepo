@@ -1,7 +1,22 @@
 package main
 
 import (
+	"flag"
+	"fmt"
+	"os"
+
 	"github.com/rakyll/command"
+)
+
+const (
+	Usage = `USAGE sbr <command> [options] [args]
+
+'sbr' is a workspace subrepository manager
+
+It helps you deal with a workspace made of several 'git' repositories.
+
+
+`
 )
 
 func main() {
@@ -11,5 +26,11 @@ func main() {
 	command.On("compare", "list directories to be created or deleted", &compareCmd{}, nil)
 	command.On("merge", "compare '.sbr' content and directory structure using 'meld'", &mergeCmd{}, nil)
 	command.On("clone", "clone a remote repository, and then checkout it's .sbr", &cloneCmd{}, nil)
+	command.On("x", "exec arbitrary command on each subrepository", &execCmd{}, nil)
+
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "")
+	}
+
 	command.ParseAndRun()
 }

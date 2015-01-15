@@ -10,8 +10,7 @@ import (
 	"github.com/ericaro/mrepo"
 )
 
-type versionCmd struct {
-}
+type versionCmd struct{}
 
 func (c *versionCmd) Flags(fs *flag.FlagSet) *flag.FlagSet { return fs }
 
