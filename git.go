@@ -3,6 +3,7 @@ package mrepo
 import (
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -71,4 +72,28 @@ func GitRevParseHead(prj string) (result string, err error) {
 		return result, fmt.Errorf("failed to: %s$ git rev-parse HEAD : %s", prj, err.Error())
 	}
 	return result, nil
+}
+
+//GitRevParseHead read the current commit sha1
+func GitRevListCountHead(prj, branch string) (left, right int, err error) {
+	cmd := exec.Command("git", "rev-list", "--count", "--left-right", "HEAD..."+branch)
+	cmd.Dir = prj
+	out, err := cmd.CombinedOutput()
+	result := strings.Trim(string(out), defaultTrimCut)
+	if err != nil {
+		return left, right, fmt.Errorf("execution error: %s$ git %s -> error %v: %s", prj, strings.Join(cmd.Args, " "), err, result)
+	}
+	//log.Printf("git %s : %s", strings.Join(cmd.Args, " "), result)
+	split := strings.Split(result, "\t")
+	sleft, sright := split[0], split[1]
+
+	left, err = strconv.Atoi(sleft)
+	if err != nil {
+		return left, right, fmt.Errorf("parsing error: %s$ git %s -> %s: Cannot convert %s to int: %v", prj, strings.Join(cmd.Args, " "), result, sleft, err)
+	}
+	right, err = strconv.Atoi(sright)
+	if err != nil {
+		return left, right, fmt.Errorf("parsing error: %s$ git %s -> %s: Cannot convert %s to int: %v", prj, strings.Join(cmd.Args, " "), result, sright, err)
+	}
+	return left, right, nil
 }

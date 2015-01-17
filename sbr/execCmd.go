@@ -14,10 +14,10 @@ type execCmd struct {
 
 func (c *execCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	// output selection
-	c.cat = flag.Bool("cat", false, "concatenate outputs, and print it")
-	c.sum = flag.Bool("sum", false, "parse each output as a number and print out the total")
-	c.count = flag.Bool("count", false, "count different outputs, and prints the resulting histogram")
-	c.digest = flag.Bool("digest", false, "compute the sha1 digest of all outputs")
+	c.cat = fs.Bool("cat", false, "concatenate outputs, and print it")
+	c.sum = fs.Bool("sum", false, "parse each output as a number and print out the total")
+	c.count = fs.Bool("count", false, "count different outputs, and prints the resulting histogram")
+	c.digest = fs.Bool("digest", false, "compute the sha1 digest of all outputs")
 
 	return fs
 }
