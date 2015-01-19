@@ -16,6 +16,16 @@ type Subrepository struct {
 	branch string
 }
 
+//copy returns a copy of this subrepository
+func (d Subrepository) copy() Subrepository {
+	return Subrepository{
+		wd:     d.wd,
+		rel:    d.rel,
+		remote: d.remote,
+		branch: d.branch,
+	}
+}
+
 //Rel returns this project's relative path.
 func (d *Subrepository) Rel() string {
 	return d.rel

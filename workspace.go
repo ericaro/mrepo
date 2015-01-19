@@ -162,10 +162,17 @@ func (x *Workspace) WriteSubrepositoryFile(wdSbr Subrepositories) {
 	defer f.Close()
 	WriteSubrepositoryTo(f, wdSbr)
 }
-func WriteSubrepositoryTo(file *os.File, wdSbr Subrepositories) {
+func WriteSubrepositoryTo(file io.Writer, wdSbr Subrepositories) {
 	sort.Sort(wdSbr)
+	pbranch := "master" // the previous branch : init to default
 	for _, d := range wdSbr {
-		fmt.Fprintf(file, "%s\n", d.String())
+		if d.branch == pbranch {
+			//short version
+			fmt.Fprintf(file, "git %q %q\n", d.rel, d.remote)
+		} else { //long one
+			fmt.Fprintf(file, "git %q %q %q\n", d.rel, d.remote, d.branch)
+		}
+		pbranch = d.branch
 	}
 }
 
@@ -213,17 +220,28 @@ func (p *Workspace) parseDependencies(r io.Reader) Subrepositories {
 	var err error
 
 	wdSbr := make([]Subrepository, 0, 100)
+	latest := &Subrepository{wd: p.wd, branch: "master"}
 	for err == nil {
-		var kind string
-		d := Subrepository{wd: p.wd}
 		// I can do better than Fscanf
-		_, err = fmt.Fscanf(r, "%s %q %q %q\n", &kind, &d.rel, &d.remote, &d.branch)
+		err = scanSubrepository(latest, r)
 		if err == nil {
-			wdSbr = append(wdSbr, d)
+			wdSbr = append(wdSbr, latest.copy())
 		}
 	}
 	if err != io.EOF {
 		log.Fatalf("Error while reading .sbr: %s", err.Error())
 	}
 	return wdSbr
+}
+
+func scanSubrepository(s *Subrepository, r io.Reader) error {
+	//now in the line scan for git path remote branch
+	// branch beeing optional
+	var kind string
+	n, err := fmt.Fscanf(r, "%s %q %q %q\n", &kind, &s.rel, &s.remote, &s.branch)
+	if n == 3 && err != io.EOF {
+		return nil
+	} else {
+		return err
+	}
 }
