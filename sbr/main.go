@@ -29,7 +29,7 @@ func main() {
 	command.On("x",
 		"<command> <args>: exec arbitrary command on each subrepository", &execCmd{}, nil)
 	command.On("status",
-		"[branch]        : count commits between HEAD and [target]", &statusCmd{}, nil)
+		"[revision]      : count commits between HEAD and 'revision'", &statusCmd{}, nil)
 
 	command.ParseAndRun()
 }
