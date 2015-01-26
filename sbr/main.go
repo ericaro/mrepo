@@ -1,6 +1,10 @@
 package main
 
-import "github.com/rakyll/command"
+import (
+	"github.com/ericaro/help"
+
+	"github.com/rakyll/command"
+)
 
 const (
 	Usage = `USAGE sbr <command> [options] [args]
@@ -30,6 +34,12 @@ func main() {
 		"<command> <args>: exec arbitrary command on each subrepository", &execCmd{}, nil)
 	command.On("status",
 		"[revision]      : count commits between HEAD and 'revision'", &statusCmd{}, nil)
+
+	//also declare docs
+	command.On("help",
+		"[sections...]   : display sections summary, or section details", help.Command, nil)
+
+	help.Section("format", "sbr format description", sbrFormatMd)
 
 	command.ParseAndRun()
 }

@@ -112,11 +112,11 @@ func (x *Workspace) WorkingDirSubrepositories() Subrepositories {
 		for _, prj := range x.WorkingDirSubpath() {
 			branch, err := GitBranch(prj)
 			if err != nil {
-				log.Fatalf("err getting branch %s", err.Error())
+				log.Fatalf("%s doesn't seem to have branches: %s", prj, err.Error())
 			}
 			origin, err := GitRemoteOrigin(prj)
 			if err != nil {
-				log.Fatalf("err getting origin %s", err.Error())
+				log.Fatalf("%s doesn't declare a remote 'origin': %s", prj, err.Error())
 			}
 			rel := x.relpath(prj)
 			if rel != "." {
