@@ -223,8 +223,9 @@ func (p *Workspace) parseDependencies(r io.Reader) Subrepositories {
 	latest := &Subrepository{wd: p.wd, branch: "master"}
 	for err == nil {
 		// I can do better than Fscanf
-		err = scanSubrepository(latest, r)
-		if err == nil {
+		var content bool
+		content, err = scanSubrepository(latest, r)
+		if content {
 			wdSbr = append(wdSbr, latest.copy())
 		}
 	}
@@ -234,14 +235,21 @@ func (p *Workspace) parseDependencies(r io.Reader) Subrepositories {
 	return wdSbr
 }
 
-func scanSubrepository(s *Subrepository, r io.Reader) error {
+//scanSubrepository parse 'r' for a single subrepository definition.
+// it updates 's' accordingly, and return content = true if at least path and remote have been read
+// it is possible that it read path and remote (but no branch) get an EOF error and returns it.
+func scanSubrepository(s *Subrepository, r io.Reader) (content bool, err error) {
 	//now in the line scan for git path remote branch
 	// branch beeing optional
 	var kind string
 	n, err := fmt.Fscanf(r, "%s %q %q %q\n", &kind, &s.rel, &s.remote, &s.branch)
-	if n == 3 && err != io.EOF {
-		return nil
-	} else {
-		return err
+	if n >= 3 {
+		content = true
 	}
+
+	if n == 3 && err != io.EOF {
+		err = nil //ignore those errors
+		return
+	}
+	return
 }
