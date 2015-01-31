@@ -6,17 +6,6 @@ import (
 	"github.com/rakyll/command"
 )
 
-const (
-	Usage = `USAGE sbr <command> [options] [args]
-
-'sbr' is a workspace subrepository manager
-
-It helps you deal with a workspace made of several 'git' repositories.
-
-
-`
-)
-
 func main() {
 	command.On("version",
 		"                : compute the sha1 of all dependencies' sha1", &versionCmd{}, nil)
@@ -34,6 +23,8 @@ func main() {
 		"<command> <args>: exec arbitrary command on each subrepository", &execCmd{}, nil)
 	command.On("status",
 		"[revision]      : count commits between HEAD and 'revision'", &statusCmd{}, nil)
+	command.On("format",
+		"                : rewrite current '.sbr' into a cannonical format", &formatCmd{}, nil)
 
 	//also declare docs
 	command.On("help",

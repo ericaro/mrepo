@@ -41,7 +41,7 @@ func (d *Subrepository) Branch() string {
 	return d.branch
 }
 func (d *Subrepository) String() string {
-	return fmt.Sprintf("git %q %q %q", d.rel, d.remote, d.branch)
+	return fmt.Sprintf("%s %s %s", d.rel, d.remote, d.branch)
 }
 
 func (d *Subrepository) Exists() (exists bool, err error) {
@@ -79,9 +79,16 @@ func (d *Subrepository) Prune() (err error) {
 // Subrepositories are always stored sorted by "rel"
 type Subrepositories []Subrepository
 
-func (a Subrepositories) Len() int           { return len(a) }
-func (a Subrepositories) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a Subrepositories) Less(i, j int) bool { return a[i].rel < a[j].rel }
+func (a Subrepositories) Len() int      { return len(a) }
+func (a Subrepositories) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a Subrepositories) Less(i, j int) bool {
+	//sortint subrepository, first key is branch, second is rel
+	if a[i].branch == a[j].branch {
+		return a[i].rel < a[j].rel
+	} else {
+		return a[i].branch < a[j].branch
+	}
+}
 
 //AddAll append a bunch of subrepositories to 'd'
 func (d *Subrepositories) AddAll(ins Subrepositories) (changed bool) {

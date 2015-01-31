@@ -1,6 +1,7 @@
 package mrepo
 
 import (
+	"encoding/csv"
 	"fmt"
 	"io"
 	"log"
@@ -140,7 +141,12 @@ func (x *Workspace) FileSubrepositories() (wdSbr Subrepositories) {
 		file, err := os.Open(filepath.Join(x.wd, x.sbrfilename))
 		if err == nil {
 			defer file.Close()
-			x.fileSbr = x.parseDependencies(file) // for now, just parse
+			x.fileSbr, err = x.ReadFrom(file) // for now, just parse
+			if err != nil {
+
+				fmt.Printf("invalid dependency file %q format. Skipping\n", x.sbrfilename)
+			}
+
 		} else {
 			if os.IsNotExist(err) {
 				fmt.Printf("dependency file %q does not exists. Skipping\n", x.sbrfilename)
@@ -163,15 +169,17 @@ func (x *Workspace) WriteSubrepositoryFile(wdSbr Subrepositories) {
 	WriteSubrepositoryTo(f, wdSbr)
 }
 func WriteSubrepositoryTo(file io.Writer, wdSbr Subrepositories) {
+
 	sort.Sort(wdSbr)
 	pbranch := "master" // the previous branch : init to default
+
 	for _, d := range wdSbr {
-		if d.branch == pbranch {
-			//short version
-			fmt.Fprintf(file, "git %q %q\n", d.rel, d.remote)
-		} else { //long one
-			fmt.Fprintf(file, "git %q %q %q\n", d.rel, d.remote, d.branch)
+		if d.branch != pbranch {
+			//declare new branch section
+			fmt.Fprintf(file, "%q\n", d.branch)
 		}
+
+		fmt.Fprintf(file, "%q %q\n", d.rel, d.remote)
 		pbranch = d.branch
 	}
 }
@@ -215,41 +223,49 @@ func (x *Workspace) relpath(subrepository string) string {
 	return subrepository
 }
 
-//parseDependencies scans 'r' and fill []Subrepository
-func (p *Workspace) parseDependencies(r io.Reader) Subrepositories {
-	var err error
+//ReadFrom read subrepository definitions fom reader
+func (p *Workspace) ReadFrom(r io.Reader) (sbr Subrepositories, err error) {
 
-	wdSbr := make([]Subrepository, 0, 100)
-	latest := &Subrepository{wd: p.wd, branch: "master"}
-	for err == nil {
-		// I can do better than Fscanf
-		var content bool
-		content, err = scanSubrepository(latest, r)
-		if content {
-			wdSbr = append(wdSbr, latest.copy())
-		}
-	}
-	if err != io.EOF {
-		log.Fatalf("Error while reading .sbr: %s", err.Error())
-	}
-	return wdSbr
-}
+	w := csv.NewReader(r)
+	w.Comma = ' '
+	w.FieldsPerRecord = -1 // allow variable fields
+	w.Comment = '#'
 
-//scanSubrepository parse 'r' for a single subrepository definition.
-// it updates 's' accordingly, and return content = true if at least path and remote have been read
-// it is possible that it read path and remote (but no branch) get an EOF error and returns it.
-func scanSubrepository(s *Subrepository, r io.Reader) (content bool, err error) {
-	//now in the line scan for git path remote branch
-	// branch beeing optional
-	var kind string
-	n, err := fmt.Fscanf(r, "%s %q %q %q\n", &kind, &s.rel, &s.remote, &s.branch)
-	if n >= 3 {
-		content = true
-	}
-
-	if n == 3 && err != io.EOF {
-		err = nil //ignore those errors
+	records, err := w.ReadAll()
+	if err != nil {
 		return
+	}
+	sbr = make([]Subrepository, 0, len(records)) // not the real size but a good approx of the "size"
+
+	// closure to make "newSubrepository" as easy as it looks
+	newSubrepository := func(path, remote, branch string) {
+		r := Subrepository{
+			wd:     p.wd,
+			rel:    path,
+			remote: remote,
+			branch: branch,
+		}
+		sbr = append(sbr, r)
+
+	}
+
+	currentBranch := "master"
+	for i, record := range records {
+		switch len(record) {
+		case 1:
+			currentBranch = record[0]
+		case 2:
+			newSubrepository(record[0], record[1], currentBranch)
+		case 3:
+			log.Printf("Warning: Subrepository %q format is not normalized. use 'sbr format' to fix it.", record[0])
+			newSubrepository(record[0], record[1], record[2])
+		case 4: //legacy
+			log.Printf("Warning: Subrepository %q uses legacy format. use 'sbr format' to fix it.", record[1])
+			newSubrepository(record[1], record[2], record[3])
+		default:
+			err = fmt.Errorf("invalid %vth record #fields must be 1,2,3, or 4 not %v", i, len(record))
+			return
+		}
 	}
 	return
 }
