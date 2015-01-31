@@ -9,9 +9,13 @@ import (
 )
 
 type formatCmd struct {
+	legacy *bool
 }
 
-func (c *formatCmd) Flags(fs *flag.FlagSet) *flag.FlagSet { return fs }
+func (c *formatCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+	c.legacy = fs.Bool("legacy", false, "format the output using the legacy format")
+	return fs
+}
 
 func (c *formatCmd) Run(args []string) {
 	// use wd by default
@@ -25,6 +29,7 @@ func (c *formatCmd) Run(args []string) {
 
 	current := workspace.FileSubrepositories()
 	workspace.WriteSubrepositoryFile(current)
+	workspace.WriteSubrepositoryFileLegacy(current)
 
 	fmt.Printf("Done")
 }

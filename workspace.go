@@ -168,19 +168,36 @@ func (x *Workspace) WriteSubrepositoryFile(wdSbr Subrepositories) {
 	defer f.Close()
 	WriteSubrepositoryTo(f, wdSbr)
 }
+func (x *Workspace) WriteSubrepositoryFileLegacy(wdSbr Subrepositories) {
+	f, err := os.Create(x.sbrfilename)
+	if err != nil {
+		fmt.Printf("Cannot write dependency file: %s", err.Error())
+		return
+	}
+	defer f.Close()
+	writeSubrepositoryTo(f, wdSbr, true)
+}
 func WriteSubrepositoryTo(file io.Writer, wdSbr Subrepositories) {
+	writeSubrepositoryTo(file, wdSbr, false)
+}
+func writeSubrepositoryTo(file io.Writer, wdSbr Subrepositories, legacy bool) {
 
 	sort.Sort(wdSbr)
 	pbranch := "master" // the previous branch : init to default
 
 	for _, d := range wdSbr {
-		if d.branch != pbranch {
-			//declare new branch section
-			fmt.Fprintf(file, "%q\n", d.branch)
-		}
+		if legacy {
+			fmt.Fprintf(file, "git %q %q %q\n", d.rel, d.remote, d.branch)
+		} else {
 
-		fmt.Fprintf(file, "%q %q\n", d.rel, d.remote)
-		pbranch = d.branch
+			if d.branch != pbranch {
+				//declare new branch section
+				fmt.Fprintf(file, "%q\n", d.branch)
+			}
+
+			fmt.Fprintf(file, "%q %q\n", d.rel, d.remote)
+			pbranch = d.branch
+		}
 	}
 }
 
