@@ -27,7 +27,12 @@ func (c *MergeCmd) Run(args []string) {
 	//generate a temp file
 	current := workspace.WorkingDirSubrepositories()
 	f, err := ioutil.TempFile("", "sbr")
-	mrepo.WriteSubrepositoryTo(f, current)
+	if err != nil {
+		fmt.Printf("Cannot generate temp file: %s", err.Error())
+		os.Exit(-1)
+
+	}
+	mrepo.WriteSbr(f, current)
 	f.Close() //no defer to open it up just after.
 	err = mrepo.Meld(workspace.Wd(), ".sbr set  |  disk set", workspace.Sbrfile(), f.Name())
 	if err != nil {

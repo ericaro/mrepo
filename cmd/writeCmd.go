@@ -50,6 +50,6 @@ func (c *WriteCmd) Run(args []string) {
 	}
 	w.Flush()
 	//always rewrite the file
-	workspace.WriteSubrepositoryFile(current)
+	WriteSbr(workspace, current)
 	fmt.Printf("Done (\033[00;32m%v\033[00m INS) (\033[00;32m%v\033[00m DEL)\n", len(ins), len(del))
 }

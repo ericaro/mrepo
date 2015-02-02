@@ -6,30 +6,26 @@ import (
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
-	"strings"
-	"sync"
 
 	"github.com/ericaro/mrepo/git"
 )
 
+var (
+	//LegacyFmt set a global legacy format writing
+	LegacyFmt = false
+)
+
 //Workspace represent the current workspace.
 //
+// It mainly deal with:
 //
-// - executes a random command synchronously
+// - reading working dir for subrepositories
 //
-// - executes a random command concurrently and pushes the result in a chan of 'Execution'
+// - reading/writing .sbr file for subrepositories
 //
-// - read local subrepositories
 //
-// - read local .sbr file
-
-//
-// Caveat, sync execution passes stdin/out to the subprocess that runs the command, so it can run in interactive mode,
-// whereas async execution does not.
-// async mode is required for statistical postprocessors.
 type Workspace struct {
 	wd          string          //current working dir
 	sbrfilename string          // the .sbr filename (by default .sbr)
@@ -49,66 +45,16 @@ func NewWorkspace(wd string) *Workspace {
 func (x *Workspace) Wd() string {
 	return x.wd
 }
+
+//Sbrfile return the workspace sbr file name.
 func (x *Workspace) Sbrfile() string {
 	return filepath.Join(x.wd, x.sbrfilename)
 }
 
-//ExecSequentially, for each `subrepository` in the working dir, execute the  command `command` with arguments `args`.
-// It passes the stdin, stdout, and stderr to the subprocess. and wait for the result, before moving to the next one.
-func (x *Workspace) ExecSequentially(command string, args ...string) {
-	var count int
-
-	for _, sub := range x.WorkingDirSubpath() {
-		count++
-		rel := x.relpath(sub)
-		fmt.Printf("\033[00;32m%s\033[00m$ %s %s\n", rel, command, strings.Join(args, " "))
-		cmd := exec.Command(command, args...)
-		cmd.Dir = sub
-		cmd.Stderr, cmd.Stdout, cmd.Stdin = os.Stderr, os.Stdout, os.Stdin
-		if err := cmd.Run(); err != nil {
-			fmt.Printf("Error running '%s %s':\n    %s\n", command, strings.Join(args, " "), err.Error())
-		}
-	}
-	fmt.Printf("Done (\033[00;32m%v\033[00m repositories)\n", count)
-}
-
-//ExecConcurently, for each `subrepository` in the working dir, execute the command `command` with arguments `args`.
-// Each command is executed in non interactive mode (no access to stdin/stdout)
-func (x *Workspace) ExecConcurrently(command string, args ...string) <-chan Execution {
-	executions := make(chan Execution)
-	var waiter sync.WaitGroup // to wait for all commands to return
-	for _, sub := range x.WorkingDirSubpath() {
-		waiter.Add(1)
-
-		go func(sub string) {
-			defer waiter.Done()
-			cmd := exec.Command(command, args...)
-			cmd.Dir = sub
-			out, err := cmd.CombinedOutput()
-			if err != nil {
-				return
-			}
-			rel := x.relpath(sub)
-			// keep
-			//head := fmt.Sprintf("\033[00;32m%s\033[00m$ %s %s\n", sub, command, strings.Join(args, " "))
-			//executions <- head + string(out)
-			result := string(out)
-			result = strings.Trim(result, git.DefaultTrimCut)
-			executions <- Execution{Name: sub, Rel: rel, Cmd: command, Args: args, Result: result}
-		}(sub)
-	}
-
-	go func() {
-		waiter.Wait()
-		close(executions)
-	}()
-	return executions
-}
-
-//WorkingDirDependencies returns, or lazily compute, the Subrepositories found in the working dir.
+//WorkingDirDependencies scan once the working dir for subrepositories
 func (x *Workspace) WorkingDirSubrepositories() Subrepositories {
 
-	if x.wdSbr == nil {
+	if x.wdSbr == nil { // lazy part
 
 		wdSbr := make(Subrepositories, 0, 100)
 
@@ -121,7 +67,7 @@ func (x *Workspace) WorkingDirSubrepositories() Subrepositories {
 			if err != nil {
 				log.Fatalf("%s doesn't declare a remote 'origin': %s", prj, err.Error())
 			}
-			rel := x.relpath(prj)
+			rel := x.Relativize(prj)
 			if rel != "." {
 				wdSbr = append(wdSbr, Subrepository{
 					wd:     x.wd,
@@ -160,35 +106,13 @@ func (x *Workspace) FileSubrepositories() (wdSbr Subrepositories) {
 	return x.fileSbr
 }
 
-//WriteSubrepositoryFile write down the set of subrepositories into the default subrepositories file.
-func (x *Workspace) WriteSubrepositoryFile(wdSbr Subrepositories) {
-	f, err := os.Create(x.sbrfilename)
-	if err != nil {
-		fmt.Printf("Cannot write dependency file: %s", err.Error())
-		return
-	}
-	defer f.Close()
-	WriteSubrepositoryTo(f, wdSbr)
-}
-func (x *Workspace) WriteSubrepositoryFileLegacy(wdSbr Subrepositories) {
-	f, err := os.Create(x.sbrfilename)
-	if err != nil {
-		fmt.Printf("Cannot write dependency file: %s", err.Error())
-		return
-	}
-	defer f.Close()
-	writeSubrepositoryTo(f, wdSbr, true)
-}
-func WriteSubrepositoryTo(file io.Writer, wdSbr Subrepositories) {
-	writeSubrepositoryTo(file, wdSbr, false)
-}
-func writeSubrepositoryTo(file io.Writer, wdSbr Subrepositories, legacy bool) {
+func WriteSbr(file io.Writer, sbr Subrepositories) {
 
-	sort.Sort(wdSbr)
+	sort.Sort(sbr)
 	pbranch := "master" // the previous branch : init to default
 
-	for _, d := range wdSbr {
-		if legacy {
+	for _, d := range sbr {
+		if LegacyFmt {
 			fmt.Fprintf(file, "git %q %q %q\n", d.rel, d.remote, d.branch)
 		} else {
 
@@ -232,7 +156,7 @@ func (x *Workspace) WorkingDirSubpath() []string {
 }
 
 //relpath computes the relative path of a subrepository
-func (x *Workspace) relpath(subrepository string) string {
+func (x *Workspace) Relativize(subrepository string) string {
 	if filepath.IsAbs(subrepository) {
 		rel, err := filepath.Rel(x.wd, subrepository)
 		if err != nil {

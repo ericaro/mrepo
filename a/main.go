@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/ericaro/mrepo"
+	"github.com/ericaro/mrepo/cmd"
 )
 
 const (
@@ -94,18 +97,18 @@ func main() {
 		// Therefore, selecting the output mode imply selecting "special"= true|false
 		// and the ExecutionProcessor function
 		var special bool = true
-		var xp mrepo.ExecutionProcessor
+		var xp cmd.ExecutionProcessor
 		switch {
 		case *cat:
-			xp = mrepo.ExecutionCat
+			xp = cmd.ExecutionCat
 		case *sum:
-			xp = mrepo.ExecutionSum
+			xp = cmd.ExecutionSum
 		case *count:
-			xp = mrepo.ExecutionCount
+			xp = cmd.ExecutionCount
 		case *digest:
-			xp = mrepo.ExecutionDigest
+			xp = cmd.ExecutionDigest
 		default:
-			xp = mrepo.ExecutionPrinter
+			xp = cmd.ExecutionPrinter
 			special = false
 		}
 		if special || *async { // this implies concurrent
@@ -113,12 +116,31 @@ func main() {
 			// we cannot just make "seq" a special case of concurrent, since when running sequentially we provide
 			// direct access to the std streams. commands can use stdin, and use term escape codes.
 			// When in async mode, we just can't do that.
-			executions := workspace.ExecConcurrently(name, args...)
+			executions := cmd.ExecConcurrently(workspace, name, args...)
 			xp(executions)
 
 		} else {
-			workspace.ExecSequentially(name, args...)
+			ExecSequentially(workspace, name, args...)
 		}
 	}
 
+}
+
+//ExecSequentially, for each `subrepository` in the working dir, execute the  command `command` with arguments `args`.
+// It passes the stdin, stdout, and stderr to the subprocess. and wait for the result, before moving to the next one.
+func ExecSequentially(x *mrepo.Workspace, command string, args ...string) {
+	var count int
+
+	for _, sub := range x.WorkingDirSubpath() {
+		count++
+		rel := x.Relativize(sub)
+		fmt.Printf("\033[00;32m%s\033[00m$ %s %s\n", rel, command, strings.Join(args, " "))
+		cmd := exec.Command(command, args...)
+		cmd.Dir = sub
+		cmd.Stderr, cmd.Stdout, cmd.Stdin = os.Stderr, os.Stdout, os.Stdin
+		if err := cmd.Run(); err != nil {
+			fmt.Printf("Error running '%s %s':\n    %s\n", command, strings.Join(args, " "), err.Error())
+		}
+	}
+	fmt.Printf("Done (\033[00;32m%v\033[00m repositories)\n", count)
 }

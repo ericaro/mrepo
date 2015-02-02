@@ -24,22 +24,54 @@ func (wk *Workspace) PullTop(w io.Writer) (err error) {
 	fmt.Fprintf(w, "     Pulling '/'...\n")
 	return
 }
+func (wk *Workspace) PullAll(w io.Writer, skip map[string]bool) (err error) {
+	var waiter sync.WaitGroup
 
-//Refresh clone and prune
+	for _, prj := range wk.WorkingDirSubpath() {
+		// it would be nice to git pull in async mode, really.
+		if !skip[prj] { //
+
+			waiter.Add(1)
+			go func(prj string) {
+				defer waiter.Done()
+				res, e := git.Pull(prj)
+				if e != nil {
+					fmt.Fprintf(w, "ERR  Pulling '%s'   : %q\n%s\n", prj, e.Error(), res)
+					if err == nil {
+						err = e
+					}
+
+				} else {
+					fmt.Fprintf(w, "     Pulling '%s'...\n", prj)
+				}
+			}(prj)
+		}
+	}
+	waiter.Wait() // wait all Pulls
+
+	return nil
+}
+
+//Refresh computes insertions, deletions and update to be made to the workding dir, and apply all of them
 func (wk *Workspace) Refresh(w io.Writer) (digest []byte, err error) {
 	return wk.refresh(w, true)
 }
 
-//Update only refresh or clone
+//Update computes insertions, deletions and update to be made to the workding dir, and apply insertions, and updates
 func (wk *Workspace) Update(w io.Writer) (digest []byte, err error) {
 	return wk.refresh(w, false)
 }
+
 func (wk *Workspace) refresh(w io.Writer, prune bool) (digest []byte, err error) {
 
 	// NB: this is  a mammoth function. I know it, but I wasn't able to
 	// split it down before having done everything.
 	//
 	// Step by step I will extract subffunctions to appropriate set of objects
+	//
+	// Let's make it three methods
+	// - ins,del, upd (no git pulling)
+	// - git pull all
 	//
 
 	// map to keep track of cloned repo (that don't need refresh)
@@ -113,33 +145,33 @@ func (wk *Workspace) refresh(w io.Writer, prune bool) (digest []byte, err error)
 		}
 	}
 
-	// now set branches too
-
 	// struct is ok ! update all
-
-	var waiter2 sync.WaitGroup
-	for _, prj := range wk.WorkingDirSubpath() {
-		// it would be nice to git pull in async mode, really.
-		if !cloned[prj] { // not a just cloned dependency, just a pull
-
-			waiter2.Add(1)
-			go func(prj string) {
-				defer waiter2.Done()
-				res, err := git.Pull(prj)
-				if err != nil {
-					fmt.Fprintf(w, "ERR  Pulling '%s'   : %q\n%s\n", prj, err.Error(), res)
-					refresherrors = append(refresherrors, err)
-				} else {
-					fmt.Fprintf(w, "     Pulling '%s'...\n", prj)
-				}
-			}(prj)
-		}
+	err = wk.PullAll(w, cloned)
+	if err != nil {
+		refresherrors = append(refresherrors, err)
 	}
-	waiter2.Wait()
+
 	fmt.Fprintf(w, "\n")
 
 	// now compute the sha1 of all sha1
 	//
+	v, err := wk.Version()
+	if err != nil {
+		fmt.Fprintf(w, "ERR  Getting Version %q\n", err.Error())
+		refresherrors = append(refresherrors, err)
+	}
+	fmt.Fprintf(w, "Workspace Version %x\n", v)
+	if len(refresherrors) > 0 {
+		//TODO(EA) if len(errors) not too big print them out too
+		return v, fmt.Errorf("Errors occured (%v) during operations", len(refresherrors))
+
+	}
+	return v, nil
+
+}
+
+//Version compute the workspace version (the sha1 of all sha1)
+func (wk *Workspace) Version() (version []byte, err error) {
 	all := make([]string, 0, 100)
 	//get all path, and sort them in alpha order
 	for _, x := range wk.WorkingDirSubpath() {
@@ -153,18 +185,13 @@ func (wk *Workspace) refresh(w io.Writer, prune bool) (digest []byte, err error)
 		// compute the sha1 for x
 		version, err := git.RevParseHead(x)
 		if err != nil {
-			fmt.Fprintf(w, "ERR  Getting Version '%s'   : %q\n", x, err.Error())
-			refresherrors = append(refresherrors, err)
+			return nil, err
 		} else {
 			fmt.Fprint(h, version)
 		}
 	}
 
 	v := h.Sum(nil)
-	fmt.Fprintf(w, "Workspace Version %x\n", v)
-	if len(refresherrors) > 0 {
-		return v, ErrRefreshAll
-	}
 	return v, nil
 }
 
