@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"flag"
@@ -8,11 +8,11 @@ import (
 	"github.com/ericaro/mrepo"
 )
 
-type execCmd struct {
+type ExecCmd struct {
 	cat, sum, count, digest *bool
 }
 
-func (c *execCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+func (c *ExecCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	// output selection
 	c.cat = fs.Bool("cat", false, "concatenate outputs, and print it")
 	c.sum = fs.Bool("sum", false, "parse each output as a number and print out the total")
@@ -22,7 +22,7 @@ func (c *execCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 
-func (c *execCmd) Run(args []string) {
+func (c *ExecCmd) Run(args []string) {
 
 	// use wd by default
 	wd, err := os.Getwd()
@@ -46,13 +46,13 @@ func (c *execCmd) Run(args []string) {
 	executions := workspace.ExecConcurrently(name, xargs...)
 	switch {
 	case *c.cat:
-		mrepo.Cat(executions)
+		mrepo.ExecutionCat(executions)
 	case *c.sum:
-		mrepo.Sum(executions)
+		mrepo.ExecutionSum(executions)
 	case *c.count:
-		mrepo.Count(executions)
+		mrepo.ExecutionCount(executions)
 	case *c.digest:
-		mrepo.Digest(executions)
+		mrepo.ExecutionDigest(executions)
 	default:
 		mrepo.ExecutionPrinter(executions)
 	}

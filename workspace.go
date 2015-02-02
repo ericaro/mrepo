@@ -203,9 +203,10 @@ func writeSubrepositoryTo(file io.Writer, wdSbr Subrepositories, legacy bool) {
 
 //WorkingDirPatches computes changes to be applied to the working dir
 func (w *Workspace) WorkingDirPatches() (ins, del Subrepositories) {
+	//TODO add a upd map ( sbr exists, but it has changed (not the path, but remote or branch))
 	target := w.FileSubrepositories()
 	current := w.WorkingDirSubrepositories()
-	ins, del = current.Diff(target)
+	ins, del, _ = current.Diff(target)
 	return
 }
 

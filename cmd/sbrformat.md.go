@@ -1,6 +1,6 @@
-package main
+package cmd
 
-var sbrFormatMd = `
+var SbrFormatMd = `
 
 # sbr File
 

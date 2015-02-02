@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"flag"
@@ -8,16 +8,16 @@ import (
 	"github.com/ericaro/mrepo"
 )
 
-type formatCmd struct {
+type FormatCmd struct {
 	legacy *bool
 }
 
-func (c *formatCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+func (c *FormatCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	c.legacy = fs.Bool("legacy", false, "format the output using the legacy format")
 	return fs
 }
 
-func (c *formatCmd) Run(args []string) {
+func (c *FormatCmd) Run(args []string) {
 	// use wd by default
 	wd, err := os.Getwd()
 	if err != nil {

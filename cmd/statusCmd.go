@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"flag"
@@ -13,11 +13,11 @@ import (
 	"github.com/ericaro/mrepo"
 )
 
-type statusCmd struct{}
+type StatusCmd struct{}
 
-func (c *statusCmd) Flags(fs *flag.FlagSet) *flag.FlagSet { return fs }
+func (c *StatusCmd) Flags(fs *flag.FlagSet) *flag.FlagSet { return fs }
 
-func (c *statusCmd) Run(args []string) {
+func (c *StatusCmd) Run(args []string) {
 	// use wd by default
 	wd, err := os.Getwd()
 	if err != nil {

@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"flag"
@@ -9,12 +9,12 @@ import (
 	"github.com/ericaro/mrepo"
 )
 
-type mergeCmd struct {
+type MergeCmd struct {
 }
 
-func (c *mergeCmd) Flags(fs *flag.FlagSet) *flag.FlagSet { return fs }
+func (c *MergeCmd) Flags(fs *flag.FlagSet) *flag.FlagSet { return fs }
 
-func (c *mergeCmd) Run(args []string) {
+func (c *MergeCmd) Run(args []string) {
 	// use wd by default
 	wd, err := os.Getwd()
 	if err != nil {

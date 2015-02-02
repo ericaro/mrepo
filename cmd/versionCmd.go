@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"crypto/sha1"
@@ -10,11 +10,11 @@ import (
 	"github.com/ericaro/mrepo"
 )
 
-type versionCmd struct{}
+type VersionCmd struct{}
 
-func (c *versionCmd) Flags(fs *flag.FlagSet) *flag.FlagSet { return fs }
+func (c *VersionCmd) Flags(fs *flag.FlagSet) *flag.FlagSet { return fs }
 
-func (c *versionCmd) Run(args []string) {
+func (c *VersionCmd) Run(args []string) {
 	// use wd by default
 	wd, err := os.Getwd()
 	if err != nil {

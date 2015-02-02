@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"flag"
@@ -9,12 +9,12 @@ import (
 	"github.com/ericaro/mrepo"
 )
 
-type writeCmd struct {
+type WriteCmd struct {
 }
 
-func (c *writeCmd) Flags(fs *flag.FlagSet) *flag.FlagSet { return fs }
+func (c *WriteCmd) Flags(fs *flag.FlagSet) *flag.FlagSet { return fs }
 
-func (c *writeCmd) Run(args []string) {
+func (c *WriteCmd) Run(args []string) {
 	// use wd by default
 	wd, err := os.Getwd()
 	if err != nil {

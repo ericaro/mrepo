@@ -101,8 +101,7 @@ func (d *Subrepositories) AddAll(ins Subrepositories) (changed bool) {
 	return
 }
 
-//Remove subrepositories from 'd'
-// apply make this method act like a dry run
+//RemoveAll subrepositories from 'd'
 func (d *Subrepositories) RemoveAll(del Subrepositories) (changed bool) {
 	sources := *d
 	deleted := indexSbr(del)
@@ -123,8 +122,10 @@ func (d *Subrepositories) RemoveAll(del Subrepositories) (changed bool) {
 //Diff compute the changes to be applied to 'current', in order to became target.
 // updates are not handled, just insertion, and deletion.
 //later, maybe we'll add update for branches
-func (current Subrepositories) Diff(target Subrepositories) (insertion, deletion Subrepositories) {
-	ins, del := make([]Subrepository, 0, 100), make([]Subrepository, 0, 100)
+func (current Subrepositories) Diff(target Subrepositories) (insertion, deletion []Subrepository, update []XSubrepository) {
+	//TODO  add a map[string]struct{Old,New} to see updates
+	ins, del, upd := make([]Subrepository, 0, 100), make([]Subrepository, 0, 100), make([]XSubrepository, 0, 100)
+	//give a identifying string  for each sbr, then, I will only have to met the differences.
 	targets := indexSbr(target)
 	currents := indexSbr(current)
 
@@ -141,7 +142,19 @@ func (current Subrepositories) Diff(target Subrepositories) (insertion, deletion
 			del = append(del, c)
 		}
 	}
-	return ins, del
+	//compute the upd
+	for id, current := range currents { // for each current
+		target, exists := targets[id]
+		if exists {
+			x := NewXSubrepository(current, target)
+			if !x.Empty() {
+				upd = append(upd, x)
+			}
+		}
+
+	}
+
+	return ins, del, upd
 }
 
 //indexSbr build up a small index of Subrepository based on their .rel attribute.

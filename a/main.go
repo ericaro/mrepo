@@ -97,13 +97,13 @@ func main() {
 		var xp mrepo.ExecutionProcessor
 		switch {
 		case *cat:
-			xp = mrepo.Cat
+			xp = mrepo.ExecutionCat
 		case *sum:
-			xp = mrepo.Sum
+			xp = mrepo.ExecutionSum
 		case *count:
-			xp = mrepo.Count
+			xp = mrepo.ExecutionCount
 		case *digest:
-			xp = mrepo.Digest
+			xp = mrepo.ExecutionDigest
 		default:
 			xp = mrepo.ExecutionPrinter
 			special = false

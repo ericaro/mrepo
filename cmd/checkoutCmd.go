@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"flag"
@@ -8,16 +8,16 @@ import (
 	"github.com/ericaro/mrepo"
 )
 
-type checkoutCmd struct {
+type CheckoutCmd struct {
 	force *bool
 }
 
-func (c *checkoutCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+func (c *CheckoutCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	c.force = fs.Bool("f", false, "force prune")
 	return fs
 }
 
-func (c *checkoutCmd) Run(args []string) {
+func (c *CheckoutCmd) Run(args []string) {
 	// use wd by default
 	wd, err := os.Getwd()
 	if err != nil {

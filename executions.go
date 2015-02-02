@@ -38,16 +38,16 @@ func ExecutionPrinter(source <-chan Execution) {
 	fmt.Printf("Done (\033[00;32m%v\033[00m repositories)\n", count)
 }
 
-//Cat ExecutionProcessor `cat` together all outputs.
-func Cat(source <-chan Execution) {
+//ExecutionCat ExecutionProcessor `cat` together all outputs.
+func ExecutionCat(source <-chan Execution) {
 	for x := range source {
 		fmt.Println(x.Result)
 	}
 }
 
-//Sum  attempt to parse the Execution result as a number and sum it up.
+//ExecutionSum  attempt to parse the Execution result as a number and sum it up.
 // if it can parse it as a number it uses `NaN`.
-func Sum(source <-chan Execution) {
+func ExecutionSum(source <-chan Execution) {
 	var total float64
 	w := tabwriter.NewWriter(os.Stdout, 6, 8, 3, '\t', 0)
 
@@ -67,8 +67,8 @@ func Sum(source <-chan Execution) {
 
 }
 
-//Count counts different outputs
-func Count(source <-chan Execution) {
+//ExecutionCount counts different outputs
+func ExecutionCount(source <-chan Execution) {
 	hist := make(map[string]int)
 	var count int
 	for x := range source {
@@ -88,9 +88,9 @@ func Count(source <-chan Execution) {
 
 }
 
-//Digest computes the digest of all execution results concatenated.
+//ExecutionDigest computes the digest of all execution results concatenated.
 // Outputs are trimed of whitespaces. (` \n\r\t`)
-func Digest(source <-chan Execution) {
+func ExecutionDigest(source <-chan Execution) {
 
 	//we are going to sort prj by name first
 	all := make([]Execution, 0, 100)

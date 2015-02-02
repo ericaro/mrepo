@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"flag"
@@ -10,16 +10,16 @@ import (
 	"github.com/ericaro/mrepo"
 )
 
-type cloneCmd struct {
+type CloneCmd struct {
 	branch *string
 }
 
-func (c *cloneCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+func (c *CloneCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	c.branch = fs.String("b", "master", "specify the branch")
 	return fs
 }
 
-func (c *cloneCmd) Run(args []string) {
+func (c *CloneCmd) Run(args []string) {
 	// use wd by default
 	wd, err := os.Getwd()
 	if err != nil {

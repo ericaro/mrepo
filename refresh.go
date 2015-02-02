@@ -97,6 +97,8 @@ func (wk *Workspace) refresh(w io.Writer, prune bool) (digest []byte, err error)
 		}
 	}
 
+	// now set branches too
+
 	// struct is ok ! update all
 
 	var waiter2 sync.WaitGroup

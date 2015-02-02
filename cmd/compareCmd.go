@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"flag"
@@ -9,12 +9,12 @@ import (
 	"github.com/ericaro/mrepo"
 )
 
-type compareCmd struct {
+type CompareCmd struct {
 }
 
-func (c *compareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet { return fs }
+func (c *CompareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet { return fs }
 
-func (c *compareCmd) Run(args []string) {
+func (c *CompareCmd) Run(args []string) {
 	// use wd by default
 	wd, err := os.Getwd()
 	if err != nil {
