@@ -64,19 +64,41 @@ func (wk *Workspace) Update(w io.Writer) (digest []byte, err error) {
 
 func (wk *Workspace) refresh(w io.Writer, prune bool) (digest []byte, err error) {
 
-	// NB: this is  a mammoth function. I know it, but I wasn't able to
-	// split it down before having done everything.
-	//
-	// Step by step I will extract subffunctions to appropriate set of objects
-	//
-	// Let's make it three methods
-	// - ins,del, upd (no git pulling)
-	// - git pull all
-	//
+	var refresherrors []error // we keep track of all errors, but we still go on.
 
-	// map to keep track of cloned repo (that don't need refresh)
-	cloned := make(map[string]bool)
+	cloned, err := wk.ApplyChanges(w, prune)
+	if err != nil {
+		return nil, err
+	}
+
+	// struct is ok ! update all
+	err = wk.PullAll(w, cloned)
+	if err != nil {
+		refresherrors = append(refresherrors, err)
+	}
+
+	fmt.Fprintf(w, "\n")
+
+	// now compute the sha1 of all sha1
+	//
+	v, err := wk.Version()
+	if err != nil {
+		fmt.Fprintf(w, "ERR  Getting Version %q\n", err.Error())
+		refresherrors = append(refresherrors, err)
+	}
+	fmt.Fprintf(w, "Workspace Version %x\n", v)
+	if len(refresherrors) > 0 {
+		//TODO(EA) if len(errors) not too big print them out too
+		return v, fmt.Errorf("Errors occured (%v) during operations", len(refresherrors))
+	}
+	return v, nil
+
+}
+func (wk *Workspace) ApplyChanges(w io.Writer, prune bool) (cloned map[string]bool, err error) {
+
 	ins, del, upd := wk.WorkingDirPatches()
+	// map to keep track of cloned repo (that don't need refresh)
+	cloned = make(map[string]bool)
 
 	var refresherrors []error // we keep track of all errors, but we still go on.
 
@@ -144,30 +166,10 @@ func (wk *Workspace) refresh(w io.Writer, prune bool) (digest []byte, err error)
 			fmt.Fprintf(w, "%v CLONE, %v REQUIRED PRUNE %v CHANGED\n\n", cloneCount, delCount, changeCount)
 		}
 	}
-
-	// struct is ok ! update all
-	err = wk.PullAll(w, cloned)
-	if err != nil {
-		refresherrors = append(refresherrors, err)
-	}
-
-	fmt.Fprintf(w, "\n")
-
-	// now compute the sha1 of all sha1
-	//
-	v, err := wk.Version()
-	if err != nil {
-		fmt.Fprintf(w, "ERR  Getting Version %q\n", err.Error())
-		refresherrors = append(refresherrors, err)
-	}
-	fmt.Fprintf(w, "Workspace Version %x\n", v)
 	if len(refresherrors) > 0 {
-		//TODO(EA) if len(errors) not too big print them out too
-		return v, fmt.Errorf("Errors occured (%v) during operations", len(refresherrors))
-
+		err = fmt.Errorf("Errors occured (%v) during operations", len(refresherrors))
 	}
-	return v, nil
-
+	return
 }
 
 //Version compute the workspace version (the sha1 of all sha1)
