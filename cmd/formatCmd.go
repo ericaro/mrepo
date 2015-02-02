@@ -28,8 +28,11 @@ func (c *FormatCmd) Run(args []string) {
 	workspace := mrepo.NewWorkspace(wd)
 
 	current := workspace.FileSubrepositories()
-	workspace.WriteSubrepositoryFile(current)
-	workspace.WriteSubrepositoryFileLegacy(current)
+	if *c.legacy {
+		workspace.WriteSubrepositoryFileLegacy(current)
+	} else {
+		workspace.WriteSubrepositoryFile(current)
+	}
 
 	fmt.Printf("Done")
 }

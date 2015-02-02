@@ -11,6 +11,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/ericaro/mrepo"
+	"github.com/ericaro/mrepo/git"
 )
 
 type StatusCmd struct{}
@@ -45,7 +46,7 @@ func (c *StatusCmd) Run(args []string) {
 	sort.Sort(byName(all))
 
 	//basically just running  git rev-list on each subrepo
-	// left, right, err := mrepo.GitRevListCountHead(x, branch)
+	// left, right, err := git.RevListCountHead(x, branch)
 	// and all the rest is "printing" stuff
 
 	//pretty tab printer
@@ -57,7 +58,7 @@ func (c *StatusCmd) Run(args []string) {
 	for _, x := range all {
 
 		// the real deal
-		left, right, giterr := mrepo.GitRevListCountHead(x, branch)
+		left, right, giterr := git.RevListCountHead(x, branch)
 		tLeft += left
 		tRight += right
 

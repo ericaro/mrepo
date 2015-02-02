@@ -1,9 +1,13 @@
 package mrepo
 
 import (
+	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/ericaro/mrepo/git"
 )
 
 //this files contains functions that deals with subrepositories
@@ -44,6 +48,39 @@ func (d *Subrepository) String() string {
 	return fmt.Sprintf("%s %s %s", d.rel, d.remote, d.branch)
 }
 
+func (d *Subrepository) Apply(x XSubrepository) (changed bool, err error) {
+	if x.wd != nil {
+		if d.wd != x.Subrepository.wd {
+			err = errors.New("Conflict wd")
+		}
+		d.wd = *x.wd
+		changed = true
+	}
+	if x.rel != nil {
+		if d.rel != x.Subrepository.rel {
+			err = errors.New("Conflict rel")
+		}
+		d.wd = *x.rel
+		changed = true
+	}
+	if x.remote != nil {
+		if d.remote != x.Subrepository.remote {
+			err = errors.New("Conflict remote")
+		}
+		d.wd = *x.remote
+		changed = true
+	}
+	if x.branch != nil {
+		if d.branch != x.Subrepository.branch {
+			err = errors.New("Conflict branch")
+		}
+		d.wd = *x.branch
+		changed = true
+	}
+	return
+
+}
+
 func (d *Subrepository) Exists() (exists bool, err error) {
 	_, err = os.Stat(filepath.Join(d.wd, d.rel))
 	if os.IsNotExist(err) { // I need to create one
@@ -61,7 +98,7 @@ func (d *Subrepository) Clone() (result string, err error) {
 		return "", fmt.Errorf("cannot test %s : %s", filepath.Join(d.wd, d.rel), err.Error())
 	}
 	if !exists {
-		return GitClone(d.wd, d.rel, d.remote, d.branch)
+		return git.Clone(d.wd, d.rel, d.remote, d.branch)
 	}
 	return "Ok", nil
 }
@@ -98,6 +135,25 @@ func (d *Subrepositories) AddAll(ins Subrepositories) (changed bool) {
 		changed = true
 	}
 	*d = sources
+	return
+}
+func (d *Subrepositories) UpdateAll(upd []XSubrepository) (changed bool) {
+	sources := *d
+	ix := make(map[string]XSubrepository) // make it a map for fast (and cleaner) queries
+	for _, upd := range upd {
+		ix[upd.Subrepository.wd] = upd
+	}
+
+	for i, sbr := range sources {
+		x, exists := ix[sbr.wd]
+		if exists {
+			u, err := sources[i].Apply(x)
+			if err != nil {
+				log.Printf("Conflict During patch: %s", err)
+			}
+			changed = changed || u
+		}
+	}
 	return
 }
 

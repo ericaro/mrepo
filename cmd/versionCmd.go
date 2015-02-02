@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/ericaro/mrepo"
+	"github.com/ericaro/mrepo/git"
 )
 
 type VersionCmd struct{}
@@ -36,7 +37,7 @@ func (c *VersionCmd) Run(args []string) {
 	h := sha1.New()
 	for _, x := range all {
 		// compute the sha1 for x
-		version, err := mrepo.GitRevParseHead(x)
+		version, err := git.RevParseHead(x)
 		if err != nil {
 			fmt.Printf("invalid subrepository, cannot compute current sha1: %s", err.Error())
 		} else {

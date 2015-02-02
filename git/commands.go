@@ -1,4 +1,4 @@
-package mrepo
+package git
 
 import (
 	"fmt"
@@ -8,37 +8,74 @@ import (
 )
 
 //this file contains function do deal with git commands.
+// this collection is meant to increase, and eventually get lower level ( use git plumbing API and expose those functions as higher level)
 
 const (
-	defaultTrimCut = "\n \t"
+	DefaultTrimCut = "\n \t"
 )
 
-//GitBranch extract the current branch name (HEAD)
-func GitBranch(prj string) (branch string, err error) {
+//Branch extract the current branch's name (HEAD)
+func Branch(prj string) (branch string, err error) {
 	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
 	cmd.Dir = prj
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return
 	}
-	result := strings.Trim(string(out), defaultTrimCut)
+	result := strings.Trim(string(out), DefaultTrimCut)
 	return result, nil
 }
 
-//GitPull automate the pull with ff only option
-func GitPull(prj string) (result string, err error) {
+//BranchExists returns true if the branch exists
+func BranchExists(prj, branch string) (exists bool, err error) {
+
+	refs, err := ForEachRef(prj)
+	if err != nil {
+		return false, fmt.Errorf("Cannot list git refs. Is this a git repo ? %v", err)
+	}
+
+	for _, ref := range refs {
+		if ref.Type == CommitType && (ref.Name == branch || ref.Name == "refs/heads/"+branch) {
+			// this is the one, it exists
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+//Checkout checkout a branch (optionally creating it)
+func Checkout(prj, branch string, create bool) (err error) {
+
+	args := make([]string, 0, 3)
+	if create {
+		args = append(args, "checkout", "-b", branch)
+	} else {
+		args = append(args, "checkout", branch)
+	}
+	cmd := exec.Command("git", args...)
+	cmd.Dir = prj
+	out, err := cmd.CombinedOutput()
+	//log.Printf("%s$ %s\n%s", prj, strings.Join(cmd.Args, " "), out)
+	if err != nil {
+		return fmt.Errorf("%s: %v", string(out), err)
+	}
+	return nil
+}
+
+//Pull automate the pull with ff only option
+func Pull(prj string) (result string, err error) {
 	cmd := exec.Command("git", "pull", "--ff-only")
 	cmd.Dir = prj
 	out, err := cmd.CombinedOutput()
-	result = strings.Trim(string(out), defaultTrimCut)
+	result = strings.Trim(string(out), DefaultTrimCut)
 	if err != nil {
 		return result, fmt.Errorf("failed to: %s$ git pull --ff-only : %s", prj, err.Error())
 	}
 	return result, nil
 }
 
-//GitClone clone a repo
-func GitClone(wd, rel, remote, branch string) (result string, err error) {
+//Clone clone a repo
+func Clone(wd, rel, remote, branch string) (result string, err error) {
 	cmd := exec.Command("git", "clone", remote, "-b", branch, rel)
 	cmd.Dir = wd
 	out, err := cmd.CombinedOutput()
@@ -49,37 +86,37 @@ func GitClone(wd, rel, remote, branch string) (result string, err error) {
 	return result, nil
 }
 
-//GitRemoteOrigin returns the current remote.origin.url
+//RemoteOrigin returns the current remote.origin.url
 // if there is no "origin" remote, then an error is returned.
-func GitRemoteOrigin(prj string) (origin string, err error) {
+func RemoteOrigin(prj string) (origin string, err error) {
 	cmd := exec.Command("git", "config", "--get", "remote.origin.url")
 	cmd.Dir = prj
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return
 	}
-	result := strings.Trim(string(out), defaultTrimCut)
+	result := strings.Trim(string(out), DefaultTrimCut)
 	return result, nil
 }
 
-//GitRevParseHead read the current commit sha1
-func GitRevParseHead(prj string) (result string, err error) {
+//RevParseHead read the current commit sha1
+func RevParseHead(prj string) (result string, err error) {
 	cmd := exec.Command("git", "rev-parse", "HEAD")
 	cmd.Dir = prj
 	out, err := cmd.CombinedOutput()
-	result = strings.Trim(string(out), defaultTrimCut)
+	result = strings.Trim(string(out), DefaultTrimCut)
 	if err != nil {
 		return result, fmt.Errorf("failed to: %s$ git rev-parse HEAD : %s", prj, err.Error())
 	}
 	return result, nil
 }
 
-//GitRevParseHead read the current commit sha1
-func GitRevListCountHead(prj, branch string) (left, right int, err error) {
+//RevParseHead read the current commit sha1
+func RevListCountHead(prj, branch string) (left, right int, err error) {
 	cmd := exec.Command("git", "rev-list", "--count", "--left-right", "HEAD..."+branch)
 	cmd.Dir = prj
 	out, err := cmd.CombinedOutput()
-	result := strings.Trim(string(out), defaultTrimCut)
+	result := strings.Trim(string(out), DefaultTrimCut)
 	if err != nil {
 		return left, right, fmt.Errorf("execution error: %s$ git %s -> error %v: %s", prj, strings.Join(cmd.Args, " "), err, result)
 	}

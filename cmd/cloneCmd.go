@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/ericaro/mrepo"
+	"github.com/ericaro/mrepo/git"
 )
 
 type CloneCmd struct {
@@ -40,7 +41,7 @@ func (c *CloneCmd) Run(args []string) {
 		rel = args[1]
 	}
 
-	res, err := mrepo.GitClone(wd, rel, remote, *c.branch)
+	res, err := git.Clone(wd, rel, remote, *c.branch)
 	fmt.Println(res)
 	if err != nil {
 		fmt.Printf("Error, cannot clone %s: %s\n", remote, err.Error())

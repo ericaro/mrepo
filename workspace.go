@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/ericaro/mrepo/git"
 )
 
 //Workspace represent the current workspace.
@@ -91,7 +93,7 @@ func (x *Workspace) ExecConcurrently(command string, args ...string) <-chan Exec
 			//head := fmt.Sprintf("\033[00;32m%s\033[00m$ %s %s\n", sub, command, strings.Join(args, " "))
 			//executions <- head + string(out)
 			result := string(out)
-			result = strings.Trim(result, defaultTrimCut)
+			result = strings.Trim(result, git.DefaultTrimCut)
 			executions <- Execution{Name: sub, Rel: rel, Cmd: command, Args: args, Result: result}
 		}(sub)
 	}
@@ -111,11 +113,11 @@ func (x *Workspace) WorkingDirSubrepositories() Subrepositories {
 		wdSbr := make(Subrepositories, 0, 100)
 
 		for _, prj := range x.WorkingDirSubpath() {
-			branch, err := GitBranch(prj)
+			branch, err := git.Branch(prj)
 			if err != nil {
 				log.Fatalf("%s doesn't seem to have branches: %s", prj, err.Error())
 			}
-			origin, err := GitRemoteOrigin(prj)
+			origin, err := git.RemoteOrigin(prj)
 			if err != nil {
 				log.Fatalf("%s doesn't declare a remote 'origin': %s", prj, err.Error())
 			}
@@ -202,11 +204,11 @@ func writeSubrepositoryTo(file io.Writer, wdSbr Subrepositories, legacy bool) {
 }
 
 //WorkingDirPatches computes changes to be applied to the working dir
-func (w *Workspace) WorkingDirPatches() (ins, del Subrepositories) {
+func (w *Workspace) WorkingDirPatches() (ins, del Subrepositories, upd []XSubrepository) {
 	//TODO add a upd map ( sbr exists, but it has changed (not the path, but remote or branch))
 	target := w.FileSubrepositories()
 	current := w.WorkingDirSubrepositories()
-	ins, del, _ = current.Diff(target)
+	ins, del, upd = current.Diff(target)
 	return
 }
 
