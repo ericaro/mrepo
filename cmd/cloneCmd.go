@@ -50,7 +50,8 @@ func (c *CloneCmd) Run(args []string) {
 
 	//creates a workspace to be able to read from/to sets
 	workspace := mrepo.NewWorkspace(filepath.Join(wd, rel))
-	_, err = workspace.Update(os.Stdout)
+	_, err = workspace.Checkout(os.Stdout, true, true, false) // those options doesn't make sense
+	// I'm pretty sure all are going to be cloned
 	if err != nil {
 		fmt.Printf("checkout error: %s", err.Error())
 		os.Exit(-1)

@@ -9,11 +9,15 @@ import (
 )
 
 type CheckoutCmd struct {
-	force *bool
+	prune  *bool
+	ffonly *bool
+	rebase *bool
 }
 
 func (c *CheckoutCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
-	c.force = fs.Bool("f", false, "force prune")
+	c.prune = fs.Bool("prune", false, "prune sub repositories that are not in the .sbr file")
+	c.ffonly = fs.Bool("ff-only", false, "Refuse to merge and exit with a non-zero status unless the current HEAD is already up-to-date or the merge can be resolved as a fast-forward.")
+	c.rebase = fs.Bool("rebase", false, "rebase instead of merge")
 	return fs
 }
 
@@ -25,21 +29,12 @@ func (c *CheckoutCmd) Run(args []string) {
 		os.Exit(-1)
 	}
 
-	if *c.force {
+	if *c.prune {
 		fmt.Printf("PRUNE mode\n")
 	}
 	//creates a workspace to be able to read from/to sets
 	workspace := mrepo.NewWorkspace(wd)
-	err = workspace.PullTop(os.Stdout)
-	if err != nil {
-		fmt.Printf("Failed to pull top: %s", err.Error())
-		os.Exit(-1)
-	}
-	if *c.force {
-		_, err = workspace.Refresh(os.Stdout)
-	} else {
-		_, err = workspace.Update(os.Stdout)
-	}
+	_, err = workspace.Checkout(os.Stdout, *c.prune, *c.ffonly, *c.rebase)
 	if err != nil {
 		fmt.Printf("checkout error: %s", err.Error())
 		os.Exit(-1)

@@ -63,13 +63,22 @@ func Checkout(prj, branch string, create bool) (err error) {
 }
 
 //Pull automate the pull with ff only option
-func Pull(prj string) (result string, err error) {
-	cmd := exec.Command("git", "pull", "--ff-only")
+func Pull(prj string, ffonly, rebase bool) (result string, err error) {
+	args := make([]string, 0, 3)
+	args = append(args, "pull")
+	if ffonly {
+		args = append(args, "--ff-only")
+	}
+	if rebase {
+		args = append(args, "--rebase")
+	}
+
+	cmd := exec.Command("git", args...)
 	cmd.Dir = prj
 	out, err := cmd.CombinedOutput()
 	result = strings.Trim(string(out), DefaultTrimCut)
 	if err != nil {
-		return result, fmt.Errorf("failed to: %s$ git pull --ff-only : %s", prj, err.Error())
+		return result, fmt.Errorf("failed to: %s$ git pull : %s", prj, err.Error())
 	}
 	return result, nil
 }

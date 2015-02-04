@@ -15,8 +15,9 @@ var (
 	ErrRefreshAll = errors.New("error refreshing subrepositories")
 )
 
-func (wk *Workspace) PullTop(w io.Writer) (err error) {
-	result, err := git.Pull(wk.Wd())
+//PullTop launches a git pull --ff-only on the Wd top git
+func (wk *Workspace) PullTop(w io.Writer, ffonly, rebase bool) (err error) {
+	result, err := git.Pull(wk.Wd(), ffonly, rebase)
 	if err != nil {
 		fmt.Fprintf(w, "ERR  Pulling '/'   : %q\n%s\n", err.Error(), result)
 		return
@@ -24,7 +25,7 @@ func (wk *Workspace) PullTop(w io.Writer) (err error) {
 	fmt.Fprintf(w, "     Pulling '/'...\n")
 	return
 }
-func (wk *Workspace) PullAll(w io.Writer, skip map[string]bool) (err error) {
+func (wk *Workspace) PullAll(w io.Writer, skip map[string]bool, ffonly, rebase bool) (err error) {
 	var waiter sync.WaitGroup
 
 	for _, prj := range wk.WorkingDirSubpath() {
@@ -34,7 +35,7 @@ func (wk *Workspace) PullAll(w io.Writer, skip map[string]bool) (err error) {
 			waiter.Add(1)
 			go func(prj string) {
 				defer waiter.Done()
-				res, e := git.Pull(prj)
+				res, e := git.Pull(prj, ffonly, rebase)
 				if e != nil {
 					fmt.Fprintf(w, "ERR  Pulling '%s'   : %q\n%s\n", prj, e.Error(), res)
 					if err == nil {
@@ -52,19 +53,14 @@ func (wk *Workspace) PullAll(w io.Writer, skip map[string]bool) (err error) {
 	return nil
 }
 
-//Refresh computes insertions, deletions and update to be made to the workding dir, and apply all of them
-func (wk *Workspace) Refresh(w io.Writer) (digest []byte, err error) {
-	return wk.refresh(w, true)
-}
-
-//Update computes insertions, deletions and update to be made to the workding dir, and apply insertions, and updates
-func (wk *Workspace) Update(w io.Writer) (digest []byte, err error) {
-	return wk.refresh(w, false)
-}
-
-func (wk *Workspace) refresh(w io.Writer, prune bool) (digest []byte, err error) {
+func (wk *Workspace) Checkout(w io.Writer, prune, ffonly, rebase bool) (digest []byte, err error) {
 
 	var refresherrors []error // we keep track of all errors, but we still go on.
+
+	err = wk.PullTop(w, ffonly, rebase)
+	if err != nil {
+		return nil, err
+	}
 
 	cloned, err := wk.ApplyChanges(w, prune)
 	if err != nil {
@@ -72,7 +68,7 @@ func (wk *Workspace) refresh(w io.Writer, prune bool) (digest []byte, err error)
 	}
 
 	// struct is ok ! update all
-	err = wk.PullAll(w, cloned)
+	err = wk.PullAll(w, cloned, ffonly, rebase)
 	if err != nil {
 		refresherrors = append(refresherrors, err)
 	}
