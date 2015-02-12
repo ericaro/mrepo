@@ -98,14 +98,7 @@ func Clone(wd, rel, remote, branch string) (result string, err error) {
 //RemoteOrigin returns the current remote.origin.url
 // if there is no "origin" remote, then an error is returned.
 func RemoteOrigin(prj string) (origin string, err error) {
-	cmd := exec.Command("git", "config", "--get", "remote.origin.url")
-	cmd.Dir = prj
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return
-	}
-	result := strings.Trim(string(out), DefaultTrimCut)
-	return result, nil
+	return ConfigGet(prj, "remote.origin.url")
 }
 
 //RevParseHead read the current commit sha1

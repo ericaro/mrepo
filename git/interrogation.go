@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/csv"
 	"os/exec"
+	"strings"
 )
 
 /* from man git
@@ -136,4 +137,17 @@ func ForEachRef(prj string) (refs []Ref, err error) {
 type Ref struct {
 	Type ObjectType
 	Name string
+}
+
+func ConfigGet(prj, key string) (string, error) {
+
+	cmd := exec.Command("git", "config", "--get", key)
+	cmd.Dir = prj
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return string(out), err
+	}
+	result := strings.Trim(string(out), DefaultTrimCut)
+	return result, nil
+
 }
