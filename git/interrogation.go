@@ -3,6 +3,8 @@ package git
 import (
 	"bytes"
 	"encoding/csv"
+	"errors"
+	"fmt"
 	"os/exec"
 	"strings"
 )
@@ -149,5 +151,21 @@ func ConfigGet(prj, key string) (string, error) {
 	}
 	result := strings.Trim(string(out), DefaultTrimCut)
 	return result, nil
+
+}
+func ConfigAdd(prj, key, val string) error {
+
+	cmd := exec.Command("git", "config", "--add", key, val)
+	cmd.Dir = prj
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%v : %s", err, string(out))
+	}
+	result := strings.Trim(string(out), DefaultTrimCut)
+
+	if result != "" {
+		return errors.New(result)
+	}
+	return nil
 
 }
