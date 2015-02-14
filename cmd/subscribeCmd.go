@@ -10,16 +10,6 @@ import (
 	"github.com/ericaro/mrepo/git"
 )
 
-const (
-	CodeNoWorkingDir        = -2
-	CodeMissingServerConfig = -3
-	CodeMissingJobConfig    = -4
-	CodeCannotDelete        = -5
-	CodeMissingBranch       = -6
-	CodeMissingRemoteOrigin = -7
-	CodeCannotAddJob        = -8
-)
-
 type SubscribeCmd struct {
 	force  *bool
 	remove *bool

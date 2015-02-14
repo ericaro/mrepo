@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"flag"
-	"fmt"
-	"os"
 
 	"github.com/ericaro/mrepo"
 )
@@ -28,16 +26,4 @@ func (c *FormatCmd) Run(args []string) {
 		mrepo.LegacyFmt = true
 	}
 	WriteSbr(workspace, current)
-}
-
-//WriteSbr write down the workspace sbr. Print errors and exit on fail.
-// this is not an API!
-func WriteSbr(w *mrepo.Workspace, current mrepo.Subrepositories) {
-	f, err := os.Create(w.Sbrfile())
-	if err != nil {
-		fmt.Printf("Error Cannot write dependency file: %s", err.Error())
-		os.Exit(-1)
-	}
-	defer f.Close()
-	mrepo.WriteSbr(f, current)
 }

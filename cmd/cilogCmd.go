@@ -4,10 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
 	"time"
-
-	"github.com/ericaro/mrepo/git"
 
 	"github.com/ericaro/mrepo/format"
 )
@@ -61,18 +58,4 @@ func (c *CilogCmd) Run(args []string) {
 			fmt.Println("\n\n", b.Summary(), "\n", r.Summary())
 		}
 	}
-}
-
-func GetCIConf(prj string) (server, jobname string) {
-	server, err := git.ConfigGet(prj, "ci.server")
-	if err != nil {
-		fmt.Printf("Error, cannot read ci remote address in git config. %s\n Use \ngit config --add ci.server <ci address>\n", err.Error())
-		os.Exit(-1)
-	}
-	jobname, err = git.ConfigGet(prj, "ci.job.name")
-	if err != nil {
-		fmt.Printf("Error, cannot read ci remote job name in git config. %s\n Use \ngit config --add ci.job.name <jobname>\n", err.Error())
-		os.Exit(-1)
-	}
-	return server, jobname
 }
