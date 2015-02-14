@@ -13,8 +13,8 @@ type CICmd struct {
 func (c *CICmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	c.Commander = command.NewCommander("ci", fs)
 	c.On("log", "print remote log", &CilogCmd{}, nil)
-	//TODO(EA): add smart commands like:
-	// ci daemon: start a ci daemon  ( no dependencies on .sbr)
-	// ci dashboard: start a ci dashboard server (needs a remote addr)
+	c.On("subscribe", "subscribe this repository into the remote CI", &SubscribeCmd{}, nil)
+	c.On("serve", "start a remote CI server", &DaemonCmd{}, nil)
+	c.On("dashboard", "start a Dashboard web app, to display the ci server.", &DashboardCmd{}, nil)
 	return fs
 }

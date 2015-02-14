@@ -3,13 +3,13 @@ package cmd
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
 	"github.com/ericaro/mrepo/git"
 
-	"github.com/ericaro/ci/cmd"
-	"github.com/ericaro/ci/format"
+	"github.com/ericaro/mrepo/format"
 )
 
 type CilogCmd struct {
@@ -22,22 +22,17 @@ func (c *CilogCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 func (c *CilogCmd) Run(args []string) {
-	wd, err := os.Getwd()
-	if err != nil {
-		fmt.Printf("Error, cannot determine the current directory. %s\n", err.Error())
-		os.Exit(-1)
-	}
-	//creates a workspace to be able to read from/to sets
-	//workspace := mrepo.NewWorkspace(wd)
+	wd := FindRootCmd()
 
 	server, jobname := GetCIConf(wd)
+	log.Printf("sending log request %s %s", server, jobname)
 
 	req := &format.Request{
 		Log: &format.LogRequest{
 			Jobname: &jobname,
 		},
 	}
-	b, r := cmd.GetRemoteExecution(server, req)
+	b, r := GetRemoteExecution(server, req)
 
 	fmt.Println(r.Print(), "\n")
 
@@ -53,7 +48,7 @@ func (c *CilogCmd) Run(args []string) {
 	if *c.tail {
 		for _ = range time.Tick(2 * time.Second) {
 
-			newb, newr := cmd.GetRemoteExecution(server, req)
+			newb, newr := GetRemoteExecution(server, req)
 
 			fmt.Print(r.Tail(newr))
 			fmt.Print(b.Tail(newb))

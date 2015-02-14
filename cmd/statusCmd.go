@@ -20,11 +20,7 @@ func (c *StatusCmd) Flags(fs *flag.FlagSet) *flag.FlagSet { return fs }
 
 func (c *StatusCmd) Run(args []string) {
 	// use wd by default
-	wd, err := os.Getwd()
-	if err != nil {
-		fmt.Printf("Error, cannot determine the current directory. %s\n", err.Error())
-		os.Exit(-1)
-	}
+	wd := FindRootCmd()
 
 	//get the revision to compare to (defaulted to origin/master)
 	branch := "origin/master"

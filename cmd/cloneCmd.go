@@ -25,7 +25,7 @@ func (c *CloneCmd) Run(args []string) {
 	wd, err := os.Getwd()
 	if err != nil {
 		fmt.Printf("Error, cannot determine the current directory. %s\n", err.Error())
-		os.Exit(-1)
+		os.Exit(CodeNoWorkingDir)
 	}
 
 	var rel, remote string

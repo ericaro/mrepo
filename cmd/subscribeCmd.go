@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ericaro/ci"
+	"github.com/ericaro/mrepo/ci"
 
 	"github.com/ericaro/mrepo/git"
 )

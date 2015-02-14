@@ -3,6 +3,8 @@ package cmd
 import (
 	"flag"
 
+	"github.com/ericaro/mrepo/format"
+
 	"github.com/ericaro/command"
 	"github.com/ericaro/help"
 )
@@ -44,5 +46,8 @@ func (c *SbrCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 		"[sections...]   : display sections summary, or section details", help.Command, nil)
 
 	help.Section("format", "sbr format description", SbrFormatMd)
+	help.Section("ci", "CI server manual", CIServerMd)
+	help.Section("protocol", "CI server protocol", string(format.CIProtocolMd))
+
 	return fs
 }
