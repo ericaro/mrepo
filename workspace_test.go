@@ -42,7 +42,7 @@ func ExampleWorkspace_ReadFrom() {
 	normalizer := func(sbr string) string {
 		sbrs, _ := w.ReadFrom(strings.NewReader(sbr))
 		buf := new(bytes.Buffer)
-		WriteSubrepositoryTo(buf, sbrs)
+		WriteSbr(buf, sbrs)
 		return buf.String()
 	}
 
