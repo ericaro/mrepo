@@ -126,6 +126,7 @@ func (a byExecName) Less(i, j int) bool { return a[i].Name < a[j].Name }
 
 type ExecCmd struct {
 	cat, sum, count, digest *bool
+	local                   *bool
 }
 
 func (c *ExecCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
@@ -134,6 +135,7 @@ func (c *ExecCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	c.sum = fs.Bool("sum", false, "parse each output as a number and print out the total")
 	c.count = fs.Bool("count", false, "count different outputs, and prints the resulting histogram")
 	c.digest = fs.Bool("digest", false, "compute the sha1 digest of all outputs")
+	c.local = fs.Bool("l", false, "start in the current working dir. Default is to start in the sbr workspace")
 
 	return fs
 }
@@ -141,10 +143,16 @@ func (c *ExecCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 func (c *ExecCmd) Run(args []string) {
 
 	// use wd by default
-	wd, err := os.Getwd()
-	if err != nil {
-		log.Fatalf("Error, cannot determine the current directory. %s\n", err.Error())
-		os.Exit(-1)
+	var wd string
+	if *c.local {
+		var err error
+		wd, err = os.Getwd()
+		if err != nil {
+			log.Fatalf("Error, cannot determine the current directory. %s\n", err.Error())
+			os.Exit(CodeNoWorkingDir)
+		}
+	} else {
+		wd = FindRootCmd()
 	}
 	//build the workspace, that is used to trigger all commands
 	workspace := mrepo.NewWorkspace(wd)

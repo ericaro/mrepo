@@ -34,14 +34,10 @@ func (c *SubscribeCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	return fs
 }
 func (c *SubscribeCmd) Run(args []string) {
-	wd, err := os.Getwd()
-	if err != nil {
-		fmt.Printf("Error, cannot determine the current directory. %s\n", err.Error())
-		os.Exit(CodeNoWorkingDir)
-	}
+	wd := FindRootCmd()
+	var err error
 
 	if *c.server == "" { // no one specified use the one in config get
-
 		*c.server, err = git.ConfigGet(wd, "ci.server")
 		if err != nil {
 			fmt.Printf("Error, cannot read ci remote address in git config. %s\n Use \ngit config --add ci.server <ci address>\n", err.Error())

@@ -4,7 +4,6 @@ import (
 	"crypto/sha1"
 	"flag"
 	"fmt"
-	"os"
 	"sort"
 
 	"github.com/ericaro/mrepo"
@@ -17,11 +16,7 @@ func (c *VersionCmd) Flags(fs *flag.FlagSet) *flag.FlagSet { return fs }
 
 func (c *VersionCmd) Run(args []string) {
 	// use wd by default
-	wd, err := os.Getwd()
-	if err != nil {
-		fmt.Printf("Error, cannot determine the current directory. %s\n", err.Error())
-		os.Exit(-1)
-	}
+	wd := FindRootCmd()
 	//creates a workspace to be able to read from/to sets
 	workspace := mrepo.NewWorkspace(wd)
 
