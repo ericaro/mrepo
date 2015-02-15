@@ -8,12 +8,13 @@ import (
 
 //ProtobufServer is an independent http server that just exposes an http protobuf protocol
 type ProtobufServer struct {
-	daemon Daemon
+	Daemon
 }
 
 func NewProtobufServer(daemon Daemon) *ProtobufServer { return &ProtobufServer{daemon} }
 
 func (s *ProtobufServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
 	// read any command
 	q := new(format.Request)
 	err := format.RequestDecode(q, r)
@@ -35,29 +36,31 @@ func (s *ProtobufServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 //Execute actually run the service transform a request into a response.
 // This is not a generic request/response protocol, the request is actually specific
 // to the ci operations.
+//
 func (s *ProtobufServer) Execute(q *format.Request) *format.Response {
-	daemon := s.daemon
+	//the daemon has method that matches pretty much every request
 	switch {
+
 	case q.List != nil:
-		l := daemon.ListJobs(q.List.GetRefreshResult(), q.List.GetRefreshResult())
+		l := s.ListJobs(q.List.GetRefreshResult(), q.List.GetBuildResult())
 		return &format.Response{List: l}
 
 	case q.Log != nil:
-		j := daemon.JobDetails(q.Log.GetJobname())
+		j := s.JobDetails(q.Log.GetJobname())
 		return &format.Response{Log: j}
 
 	case q.Add != nil:
 		j := q.Add.Id
-		err := daemon.AddJob(j.GetName(), j.GetRemote(), j.GetBranch())
+		err := s.AddJob(j.GetName(), j.GetRemote(), j.GetBranch())
 		if err != nil {
 			msg := err.Error()
 			return &format.Response{Error: &msg}
 		}
 		// shedule a run after an Add
-		daemon.HeartBeats()
+		s.HeartBeats()
 		return &format.Response{}
 	case q.Remove != nil:
-		err := daemon.RemoveJob(q.Remove.GetJobname())
+		err := s.RemoveJob(q.Remove.GetJobname())
 		if err != nil {
 			msg := err.Error()
 			return &format.Response{Error: &msg}

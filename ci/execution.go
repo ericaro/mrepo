@@ -9,13 +9,16 @@ import (
 	"github.com/ericaro/mrepo/format"
 )
 
-//execution is a tool to run any execution, and keep: information about it.
+//execution is a tool to run any execution (refresh or build), and keep: information about it.
 type execution struct {
 	version    [20]byte      // sha1 of all sha1 when the build has started, or ended (if the execution should change it.)
 	start, end time.Time     // keep track of when
 	errcode    int           // execution error code
 	result     *bytes.Buffer // console output
 }
+
+// whenever an execution starts it updates its start time
+func (x *execution) IsRunning() bool { return x.start.After(x.end) }
 
 //Marshal converts execution state into a "format" message.
 func (x *execution) Marshal() *format.Execution { return x.Status(true) }
@@ -26,7 +29,6 @@ func (x *execution) Status(withResult bool) *format.Execution {
 	version := fmt.Sprintf("%x", x.version)
 	start, end := x.start.Unix(), x.end.Unix()
 	code := int32(x.errcode)
-	result := x.result.String()
 	f := &format.Execution{
 		Version: &version,
 		Start:   &start,
@@ -34,6 +36,7 @@ func (x *execution) Status(withResult bool) *format.Execution {
 		Errcode: &code,
 	}
 	if withResult {
+		result := x.result.String()
 		f.Result = &result
 	}
 	return f

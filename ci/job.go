@@ -26,10 +26,10 @@ type job struct {
 	// args     []string  // args of the ci command default `ci`
 
 	//other fields are local one.
-	at       *time.Timer
-	refresh  execution // info about the refresh execution
-	build    execution // info about the build execution
-	execLock sync.Mutex
+	at       *time.Timer // timer to deal with the delay
+	refresh  execution   // info about the refresh execution
+	build    execution   // info about the build execution
+	execLock sync.Mutex  // there are still issues with this lock (in relation with delete)
 }
 
 func RunJobNow(name, remote, branch string) {
@@ -45,13 +45,16 @@ func RunJobNow(name, remote, branch string) {
 func (j *job) Marshal() *format.Job { return j.Status(true, true) }
 
 func (j *job) State() Status {
-	if j.refresh.start.After(j.refresh.end) || j.build.start.After(j.build.end) {
+
+	if j.refresh.IsRunning() || j.build.IsRunning() {
 		return StatusRunning
 	}
-	if j.refresh.errcode == 0 && j.build.errcode == 0 {
-		return StatusOK
+
+	if j.refresh.errcode != 0 || j.build.errcode != 0 {
+		return StatusKO
 	}
-	return StatusKO
+
+	return StatusOK
 }
 
 //Status serialize information into a format.Job object.
@@ -88,30 +91,31 @@ func (j *job) Unmarshal(f *format.Job) error {
 	return nil
 }
 
-//Run schedules (or reschedule) a run
+//Run waits for a while and then start a refresh/build execution.
 func (j *job) Run() {
+
 	j.RunWithDelay(10 * time.Second)
 }
 
 func (j *job) RunWithDelay(delay time.Duration) {
-	if j.at == nil { // never scheduled before
-		log.Printf("%s Run scheduled in %v", j.name, delay)
-		j.at = time.AfterFunc(delay, j.doRun)
+	// nobody can "change" at right now
+	if j.at == nil { // first time
+		j.at = time.AfterFunc(delay, j.doRun) // schedule
 	} else {
-		stopped := j.at.Reset(delay) // reschedule for a delay (either restart it or cancel before restarting)
-		if stopped {
-			log.Printf("%s Run postponed in %v", j.name, delay)
-		} else {
-			log.Printf("%s Run scheduled in %v", j.name, delay)
+		delayed := j.at.Reset(delay) //reset is enough
+		//the bool is to tell if the action has been postponed or simply rescheduled
+		if delayed {
+			log.Printf("job[%q].execution.redelayed:%v", j.name, delay)
 		}
 	}
+	log.Printf("job[%q].execution.delayed:%v", j.name, delay)
 }
 
 //doRun really execute the run
 func (j *job) doRun() {
-	log.Printf("Pulling %s", j.name)
+	log.Printf("job[%q].pull", j.name)
 	j.Refresh()
-	log.Printf("Building %s", j.name)
+	log.Printf("job[%q].build", j.name)
 	j.Build()
 }
 
@@ -136,7 +140,7 @@ func (j *job) Refresh() {
 	} else {
 		j.refresh.errcode = 0
 	}
-	log.Printf("Done refreshing job %s", j.name)
+	log.Printf("job[%q].pull.done", j.name)
 }
 
 //Build the current job
@@ -149,7 +153,7 @@ func (j *job) Build() {
 	/* temp deactivated  */
 	if j.build.version == j.refresh.version {
 		// currently uptodate, nothing to do
-		log.Printf("job %s has already been built", j.name)
+		log.Printf("job[%q].build.skip", j.name)
 		return
 	}
 	/**/
@@ -171,9 +175,9 @@ func (j *job) Build() {
 	} else {
 		j.build.errcode = 0
 	}
-	log.Printf("Done building job %s", j.name)
-
+	log.Printf("job[%q].build.done", j.name)
 }
+
 func (j *job) dobuild(w io.Writer) error {
 
 	wd, err := os.Getwd()
@@ -201,7 +205,7 @@ func (j *job) dorefresh(w io.Writer) error {
 	}
 	_, err = os.Stat(j.name)
 	if os.IsNotExist(err) { // target does not exist, make it.
-		fmt.Fprintf(w, "job dir does not exists. Will create one: %s\n", j.name)
+		fmt.Fprintf(w, "%s dir does not exists. Will create one.\n", j.name)
 		result, err := git.Clone(wd, j.name, j.remote, j.branch)
 		fmt.Fprintln(w, result)
 		if err != nil {
