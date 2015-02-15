@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/ericaro/mrepo/git"
@@ -93,6 +94,9 @@ func (wk *Workspace) Checkout(w io.Writer, prune, ffonly, rebase bool) (digest [
 func (wk *Workspace) ApplyChanges(w io.Writer, prune bool) (cloned map[string]bool, err error) {
 
 	ins, del, upd := wk.WorkingDirPatches()
+	if err != nil {
+		return
+	}
 	// map to keep track of cloned repo (that don't need refresh)
 	cloned = make(map[string]bool)
 
@@ -170,12 +174,15 @@ func (wk *Workspace) ApplyChanges(w io.Writer, prune bool) (cloned map[string]bo
 
 //Version compute the workspace version (the sha1 of all sha1)
 func (wk *Workspace) Version() (version []byte, err error) {
-	all := make([]string, 0, 100)
 	//get all path, and sort them in alpha order
-	for _, x := range wk.WorkingDirSubpath() {
+	subs := wk.WorkingDirSubpath()
+	all := make([]string, 0, len(subs))
+	errs := make([]string, 0, len(subs))
+	for _, x := range subs {
 		all = append(all, x)
 	}
-	sort.Sort(byPathName(all))
+
+	sort.Strings(all)
 
 	// now compute the sha1
 	h := sha1.New()
@@ -183,19 +190,16 @@ func (wk *Workspace) Version() (version []byte, err error) {
 		// compute the sha1 for x
 		version, err := git.RevParseHead(x)
 		if err != nil {
-			return nil, err
+			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprint(h, version)
 		}
+	}
+	if len(errs) > 0 {
+		err = errors.New(strings.Join(errs, "\n"))
+		return
 	}
 
 	v := h.Sum(nil)
 	return v, nil
 }
-
-//byName to sort any slice of Execution by their Name !
-type byPathName []string
-
-func (a byPathName) Len() int           { return len(a) }
-func (a byPathName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a byPathName) Less(i, j int) bool { return a[i] < a[j] }

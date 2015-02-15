@@ -1,13 +1,10 @@
 package cmd
 
 import (
-	"crypto/sha1"
 	"flag"
 	"fmt"
-	"sort"
 
 	"github.com/ericaro/mrepo"
-	"github.com/ericaro/mrepo/git"
 )
 
 type VersionCmd struct{}
@@ -19,28 +16,10 @@ func (c *VersionCmd) Run(args []string) {
 	wd := FindRootCmd()
 	//creates a workspace to be able to read from/to sets
 	workspace := mrepo.NewWorkspace(wd)
-
-	all := make([]string, 0, 100)
-	//get all path, and sort them in alpha order
-	for _, x := range workspace.WorkingDirSubpath() {
-		all = append(all, x)
+	v, err := workspace.Version()
+	if err != nil {
+		fmt.Printf("Cannot compute version: %v\n", err)
 	}
-
-	sort.Sort(byName(all))
-
-	// now compute the sha1
-	h := sha1.New()
-	for _, x := range all {
-		// compute the sha1 for x
-		version, err := git.RevParseHead(x)
-		if err != nil {
-			fmt.Printf("invalid subrepository, cannot compute current sha1: %s", err.Error())
-		} else {
-			fmt.Fprint(h, version)
-		}
-	}
-
-	v := h.Sum(nil)
 	fmt.Printf("%x\n", v)
 }
 
