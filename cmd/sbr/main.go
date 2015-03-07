@@ -8,5 +8,5 @@ import (
 )
 
 func main() {
-	command.Launch(&cmd.SbrCmd{command.NewCommander()}, os.Args[0], os.Args)
+	command.Launch(cmd.NewSbrCmd(), os.Args[0], os.Args)
 }

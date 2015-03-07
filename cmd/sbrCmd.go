@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"flag"
-
 	"github.com/ericaro/mrepo/format"
 
 	"github.com/ericaro/command"
@@ -13,7 +11,9 @@ type SbrCmd struct {
 	command.Commander
 }
 
-func (c *SbrCmd) Flags(fs *flag.FlagSet) {
+func NewSbrCmd() SbrCmd {
+
+	c := SbrCmd{command.New()}
 	c.On("version", "", "compute the sha1 of all dependencies' sha1", &VersionCmd{})
 	c.On("write", "", "write into '.sbr' to reflect directory changes", &WriteCmd{})
 	c.On("checkout", "", "pull top; clone new dependencies; pull all other dependencies (deprecated dependencies can be pruned using -f option)", &CheckoutCmd{})
@@ -24,16 +24,20 @@ func (c *SbrCmd) Flags(fs *flag.FlagSet) {
 	c.On("status", "[revision]", "count commits between HEAD and 'revision'", &StatusCmd{})
 	c.On("format", " ", "rewrite current '.sbr' into a cannonical format", &FormatCmd{})
 
-	// c.On("cilog",
-	// 	" "                ,"print remote ci status. Use --tail to tail remote logs", &CilogCmd{}, nil)
-
-	c.On("ci", "<command> <args>", "remote ci commander. Type 'sbr ci' for help", &CICmd{command.NewCommander()})
+	// CI subcommands
+	ci := command.New()
+	c.On("ci", "<command> <args>", "remote ci commander. Type 'sbr ci' for help", ci)
+	ci.On("log", "", "print remote log", &CilogCmd{})
+	ci.On("subscribe", "", "subscribe this repository into the remote CI", &SubscribeCmd{})
+	ci.On("serve", "", "start a remote CI server", &DaemonCmd{})
+	ci.On("dashboard", "", "start a Dashboard web app, to display the ci server.", &DashboardCmd{})
 
 	//also declare docs
 	c.On("help", "[sections...]", "display sections summary, or section details", help.Command)
-
 	help.Section("format", "sbr format description", SbrFormatMd)
 	help.Section("ci", "CI server manual", CIServerMd)
 	help.Section("protocol", "CI server protocol", string(format.CIProtocolMd))
+
+	return c
 
 }
