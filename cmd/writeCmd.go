@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -11,8 +10,6 @@ import (
 
 type WriteCmd struct {
 }
-
-func (c *WriteCmd) Flags(fs *flag.FlagSet) *flag.FlagSet { return fs }
 
 func (c *WriteCmd) Run(args []string) {
 	// use wd by default

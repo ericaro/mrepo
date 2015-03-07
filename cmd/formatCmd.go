@@ -10,9 +10,8 @@ type FormatCmd struct {
 	legacy *bool
 }
 
-func (c *FormatCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+func (c *FormatCmd) Flags(fs *flag.FlagSet) {
 	c.legacy = fs.Bool("legacy", false, "format the output using the legacy format")
-	return fs
 }
 
 func (c *FormatCmd) Run(args []string) {

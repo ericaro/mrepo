@@ -18,12 +18,11 @@ type DashboardCmd struct {
 	prop   *float64
 }
 
-func (c *DashboardCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+func (c *DashboardCmd) Flags(fs *flag.FlagSet) {
 	c.server = fs.String("s", "", "remote server address")
 	c.title = fs.String("t", "CI Dashboard", "CI title")
 	c.port = fs.Int("p", 8080, "http port to listen to")
 	c.prop = fs.Float64("prop", 4, "cell width ~= prop*cell height")
-	return fs
 }
 
 func (c *DashboardCmd) Run(args []string) {

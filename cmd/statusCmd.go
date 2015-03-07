@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,8 +14,6 @@ import (
 )
 
 type StatusCmd struct{}
-
-func (c *StatusCmd) Flags(fs *flag.FlagSet) *flag.FlagSet { return fs }
 
 func (c *StatusCmd) Run(args []string) {
 	// use wd by default

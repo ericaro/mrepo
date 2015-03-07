@@ -15,9 +15,8 @@ type CloneCmd struct {
 	branch *string
 }
 
-func (c *CloneCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+func (c *CloneCmd) Flags(fs *flag.FlagSet) {
 	c.branch = fs.String("b", "master", "specify the branch")
-	return fs
 }
 
 func (c *CloneCmd) Run(args []string) {

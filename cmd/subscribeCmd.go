@@ -17,11 +17,10 @@ type SubscribeCmd struct {
 	// TODO add server and jobname optional
 }
 
-func (c *SubscribeCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+func (c *SubscribeCmd) Flags(fs *flag.FlagSet) {
 	c.force = fs.Bool("force", false, "force remote job creation even if it exists")
 	c.remove = fs.Bool("remove", false, "only remove remote job.")
 	c.server = fs.String("server", "", "the remote address ci adress")
-	return fs
 }
 func (c *SubscribeCmd) Run(args []string) {
 	wd := FindRootCmd()

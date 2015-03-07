@@ -17,13 +17,12 @@ type DaemonCmd struct {
 	hook     *bool
 }
 
-func (c *DaemonCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+func (c *DaemonCmd) Flags(fs *flag.FlagSet) {
 	c.dbfile = fs.String("o", "ci.db", "override the default local file name")
 	c.port = fs.Int("p", 2020, "override the default local port")
 	c.hookport = fs.Int("hp", 2121, "override the default hook port ")
 	c.hook = fs.Bool("hook", false, "also start an http Hook server (Get returns a status, Post fire a build)")
 
-	return fs
 }
 
 func (c *DaemonCmd) Run(args []string) {

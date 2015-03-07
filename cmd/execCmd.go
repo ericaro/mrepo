@@ -129,7 +129,7 @@ type ExecCmd struct {
 	local                   *bool
 }
 
-func (c *ExecCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+func (c *ExecCmd) Flags(fs *flag.FlagSet) {
 	// output selection
 	c.cat = fs.Bool("cat", false, "concatenate outputs, and print it")
 	c.sum = fs.Bool("sum", false, "parse each output as a number and print out the total")
@@ -137,7 +137,6 @@ func (c *ExecCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
 	c.digest = fs.Bool("digest", false, "compute the sha1 digest of all outputs")
 	c.local = fs.Bool("l", false, "start in the current working dir. Default is to start in the sbr workspace")
 
-	return fs
 }
 
 func (c *ExecCmd) Run(args []string) {

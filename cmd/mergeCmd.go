@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -11,8 +10,6 @@ import (
 
 type MergeCmd struct {
 }
-
-func (c *MergeCmd) Flags(fs *flag.FlagSet) *flag.FlagSet { return fs }
 
 func (c *MergeCmd) Run(args []string) {
 	// use wd by default

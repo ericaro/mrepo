@@ -14,9 +14,8 @@ type CilogCmd struct {
 	// TODO add server and jobname optional
 }
 
-func (c *CilogCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+func (c *CilogCmd) Flags(fs *flag.FlagSet) {
 	c.tail = fs.Bool("tail", false, "print the current job, and then poll for updates.")
-	return fs
 }
 func (c *CilogCmd) Run(args []string) {
 	wd := FindRootCmd()

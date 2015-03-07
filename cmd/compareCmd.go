@@ -13,9 +13,8 @@ type CompareCmd struct {
 	reverse *bool
 }
 
-func (c *CompareCmd) Flags(fs *flag.FlagSet) *flag.FlagSet {
+func (c *CompareCmd) Flags(fs *flag.FlagSet) {
 	c.reverse = fs.Bool("r", false, "with present changes as .sbr file edition.")
-	return fs
 }
 
 func (c *CompareCmd) Run(args []string) {

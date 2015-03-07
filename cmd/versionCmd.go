@@ -1,15 +1,12 @@
 package cmd
 
 import (
-	"flag"
 	"fmt"
 
 	"github.com/ericaro/mrepo"
 )
 
 type VersionCmd struct{}
-
-func (c *VersionCmd) Flags(fs *flag.FlagSet) *flag.FlagSet { return fs }
 
 func (c *VersionCmd) Run(args []string) {
 	// use wd by default
