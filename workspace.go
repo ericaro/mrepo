@@ -127,14 +127,21 @@ func WriteSbr(file io.Writer, sbr Subrepositories) {
 	}
 }
 
-//WorkingDirPatches computes changes to be applied to the working dir
-func (w *Workspace) WorkingDirPatches() (ins, del Subrepositories, upd []XSubrepository) {
-	//TODO add a upd map ( sbr exists, but it has changed (not the path, but remote or branch))
-	target := w.FileSubrepositories()
-	current := w.WorkingDirSubrepositories()
-	ins, del, upd = current.Diff(target)
-	return
-}
+// //WorkingDirPatches computes changes to be applied to the working dir
+// func (w *Workspace) WorkingDirPatches() (ins, del Subrepositories, upd []XSubrepository) {
+// 	target := w.FileSubrepositories()
+// 	src := w.WorkingDirSubrepositories()
+// 	ins, del, upd = src.Diff(target)
+// 	return
+// }
+
+// //WorkingDirPatches computes changes to be applied to the sbrfile
+// func (w *Workspace) SbrfilePatches() (ins, del Subrepositories, upd []XSubrepository) {
+// 	target := w.WorkingDirSubrepositories()
+// 	src := w.FileSubrepositories()
+// 	ins, del, upd = src.Diff(target)
+// 	return
+// }
 
 //WorkingDirSubpath extract only the path of the subrepositories (faster than the whole dependency)
 func (x *Workspace) WorkingDirSubpath() []string {

@@ -114,7 +114,8 @@ func diffString(src, target string) *string {
 	if src == target {
 		return nil
 	}
-	return &target
+	x := target
+	return &x
 }
 
 func stringdiff(src string, target *string) (res string) {

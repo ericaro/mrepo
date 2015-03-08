@@ -14,12 +14,13 @@ type SbrCmd struct {
 func NewSbrCmd() SbrCmd {
 
 	c := SbrCmd{command.New()}
-	c.On("version", "", "compute the sha1 of all dependencies' sha1", &VersionCmd{})
-	c.On("write", "", "write into '.sbr' to reflect directory changes", &WriteCmd{})
-	c.On("checkout", "", "pull top; clone new dependencies; pull all other dependencies (deprecated dependencies can be pruned using -f option)", &CheckoutCmd{})
-	c.On("compare", "", "list directories to be created or deleted", &CompareCmd{})
-	c.On("merge", "", "compare '.sbr' content and directory structure using 'meld'", &MergeCmd{})
 	c.On("clone", "<remote> [path]", "clone a remote repository, and then checkout it's .sbr", &CloneCmd{})
+	c.On("checkout", "", "pull top; clone new dependencies; pull all other dependencies (deprecated dependencies can be pruned using -f option)", &CheckoutCmd{})
+	c.On("version", "", "compute the sha1 of all dependencies' sha1", &VersionCmd{})
+	//these are edits
+	c.On("diff", "", "list subrepositories to be added to or removed from '.sbr'", &DiffCmd{})
+
+	// utils
 	c.On("x", "<command> <args>", "exec arbitrary command on each subrepository", &ExecCmd{})
 	c.On("status", "[revision]", "count commits between HEAD and 'revision'", &StatusCmd{})
 	c.On("format", " ", "rewrite current '.sbr' into a cannonical format", &FormatCmd{})

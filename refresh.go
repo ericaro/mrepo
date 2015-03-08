@@ -93,7 +93,7 @@ func (wk *Workspace) Checkout(w io.Writer, prune, ffonly, rebase bool) (digest [
 }
 func (wk *Workspace) ApplyChanges(w io.Writer, prune bool) (cloned map[string]bool, err error) {
 
-	ins, del, upd := wk.WorkingDirPatches()
+	ins, del, upd := Diff(wk.WorkingDirSubrepositories(), wk.FileSubrepositories())
 	if err != nil {
 		return
 	}

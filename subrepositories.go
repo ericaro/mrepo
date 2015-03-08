@@ -48,7 +48,10 @@ func (d *Subrepository) String() string {
 	return fmt.Sprintf("%s %s %s", d.rel, d.remote, d.branch)
 }
 
+//Apply changes described in 'x' to d
 func (d *Subrepository) Apply(x XSubrepository) (changed bool, err error) {
+	// always the same pattern if x.ss != nil mean there is a patch to do
+	// if d.ss != x.Subrepository.ss means optimistic lock
 	if x.wd != nil {
 		if d.wd != x.Subrepository.wd {
 			err = errors.New("Conflict wd")
@@ -60,21 +63,21 @@ func (d *Subrepository) Apply(x XSubrepository) (changed bool, err error) {
 		if d.rel != x.Subrepository.rel {
 			err = errors.New("Conflict rel")
 		}
-		d.wd = *x.rel
+		d.rel = *x.rel
 		changed = true
 	}
 	if x.remote != nil {
 		if d.remote != x.Subrepository.remote {
 			err = errors.New("Conflict remote")
 		}
-		d.wd = *x.remote
+		d.remote = *x.remote
 		changed = true
 	}
 	if x.branch != nil {
 		if d.branch != x.Subrepository.branch {
-			err = errors.New("Conflict branch")
+			err = fmt.Errorf("Conflict branch was %v!=%v → %v", d.branch, x.Subrepository.branch, *x.branch)
 		}
-		d.wd = *x.branch
+		d.branch = *x.branch
 		changed = true
 	}
 	return
@@ -141,11 +144,11 @@ func (d *Subrepositories) UpdateAll(upd []XSubrepository) (changed bool) {
 	sources := *d
 	ix := make(map[string]XSubrepository) // make it a map for fast (and cleaner) queries
 	for _, upd := range upd {
-		ix[upd.Subrepository.wd] = upd
+		ix[upd.Subrepository.Rel()] = upd
 	}
 
 	for i, sbr := range sources {
-		x, exists := ix[sbr.wd]
+		x, exists := ix[sbr.Rel()]
 		if exists {
 			u, err := sources[i].Apply(x)
 			if err != nil {
@@ -175,34 +178,34 @@ func (d *Subrepositories) RemoveAll(del Subrepositories) (changed bool) {
 	return
 }
 
-//Diff compute the changes to be applied to 'current', in order to became target.
+//Diff compute the changes to be applied to 'src', in order to became dest.
 // updates are not handled, just insertion, and deletion.
 //later, maybe we'll add update for branches
-func (current Subrepositories) Diff(target Subrepositories) (insertion, deletion []Subrepository, update []XSubrepository) {
+func Diff(src, dest Subrepositories) (insertion, deletion []Subrepository, update []XSubrepository) {
 	//TODO  add a map[string]struct{Old,New} to see updates
 	ins, del, upd := make([]Subrepository, 0, 100), make([]Subrepository, 0, 100), make([]XSubrepository, 0, 100)
 	//give a identifying string  for each sbr, then, I will only have to met the differences.
-	targets := indexSbr(target)
-	currents := indexSbr(current)
+	targets := indexSbr(dest)
+	currents := indexSbr(src)
 
 	//then compute the diffs
-	for id, t := range targets { // for each target
+	for id, t := range targets { // for each dest
 		_, exists := currents[id]
 		if !exists { // if missing , create an insert
 			ins = append(ins, t)
 		}
 	}
-	for id, c := range currents { // for each current
+	for id, c := range currents { // for each src
 		_, exists := targets[id]
-		if !exists { // locally exists, but not in target, it's a deletion
+		if !exists { // locally exists, but not in dest, it's a deletion
 			del = append(del, c)
 		}
 	}
 	//compute the upd
-	for id, current := range currents { // for each current
-		target, exists := targets[id]
+	for id, src := range currents { // for each src
+		dest, exists := targets[id]
 		if exists {
-			x := NewXSubrepository(current, target)
+			x := NewXSubrepository(src, dest)
 			if !x.Empty() {
 				upd = append(upd, x)
 			}
