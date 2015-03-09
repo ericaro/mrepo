@@ -101,6 +101,17 @@ func RemoteOrigin(prj string) (origin string, err error) {
 	return ConfigGet(prj, "remote.origin.url")
 }
 
+//RemoteSetOrigin set the current origin remote
+func RemoteSetOrigin(prj, remote string) (err error) {
+	cmd := exec.Command("git", "remote", "set-url", remote)
+	cmd.Dir = prj
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to: %s$ git remote set-url %v : %s %s", prj, remote, err.Error(), string(out))
+	}
+	return nil
+}
+
 //RevParseHead read the current commit sha1
 func RevParseHead(prj string) (result string, err error) {
 	cmd := exec.Command("git", "rev-parse", "HEAD")

@@ -9,15 +9,13 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/ericaro/mrepo"
 	"github.com/ericaro/mrepo/git"
+	"github.com/ericaro/mrepo/sbr"
 )
 
 type StatusCmd struct{}
 
 func (c *StatusCmd) Run(args []string) {
-	// use wd by default
-	wd := FindRootCmd()
 
 	//get the revision to compare to (defaulted to origin/master)
 	branch := "origin/master"
@@ -26,17 +24,18 @@ func (c *StatusCmd) Run(args []string) {
 	}
 
 	//creates a workspace to be able to read from/to sets
-	workspace := mrepo.NewWorkspace(wd)
+	workspace, err := sbr.FindWorkspace(os.Getwd())
+	if err != nil {
+		exit(-1, "%v", err)
+	}
 
 	all := make([]string, 0, 100)
 	//get all path, and sort them in alpha order
-	for _, x := range workspace.WorkingDirSubpath() {
-		all = append(all, x)
-	}
+	all = workspace.ScanRel()
 
 	//little trick to keep project sorted.
 	// this is only possible when I execute sync commands.
-	sort.Sort(byName(all))
+	sort.Strings(all)
 
 	//basically just running  git rev-list on each subrepo
 	// left, right, err := git.RevListCountHead(x, branch)
@@ -56,7 +55,7 @@ func (c *StatusCmd) Run(args []string) {
 		tRight += right
 
 		//computes the relative path (prettier to print)
-		rel, err := filepath.Rel(wd, x)
+		rel, err := filepath.Rel(workspace.Wd(), x)
 		if err != nil {
 			rel = x // rel is only use for presentation
 		}

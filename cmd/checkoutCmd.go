@@ -6,7 +6,7 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/ericaro/mrepo"
+	"github.com/ericaro/mrepo/sbr"
 )
 
 type CheckoutCmd struct {
@@ -24,15 +24,24 @@ func (c *CheckoutCmd) Flags(fs *flag.FlagSet) {
 }
 
 func (c *CheckoutCmd) Run(args []string) {
-	// use wd by default
-	wd := FindRootCmd()
-	//creates a workspace to be able to read from/to sets
-	workspace := mrepo.NewWorkspace(wd)
+
+	workspace, err := sbr.FindWorkspace(os.Getwd())
+	if err != nil {
+		exit(CodeNoWorkingDir, "%v", err)
+	}
 
 	if *c.dry {
 
 		// compute patches
-		ins, del, upd := mrepo.Diff(workspace.WorkingDirSubrepositories(), workspace.FileSubrepositories())
+		dirs, err := workspace.Scan()
+		if err != nil {
+			exit(CodeNoWorkingDir, "%v", err)
+		}
+		sbrs, err := workspace.Read()
+		if err != nil {
+			exit(CodeNoWorkingDir, "%v", err)
+		}
+		ins, del, upd := sbr.Diff(dirs, sbrs)
 
 		if len(del)+len(ins)+len(upd) > 0 {
 
@@ -45,7 +54,7 @@ func (c *CheckoutCmd) Run(args []string) {
 				fmt.Fprintf(w, "\033[00;31mCLONE  \033[00m\t%s\t%s\t%s\t\n", s.Rel(), s.Remote(), s.Branch())
 			}
 			for _, s := range upd {
-				fmt.Fprintf(w, "\033[00;34mCHANGED\033[00m\t%s\t%s\t%s\t\n", c.diff(s.Rel(), s.XRel()), c.diff(s.Remote(), s.XRemote()), c.diff(s.Branch(), s.XBranch()))
+				fmt.Fprintf(w, "\033[00;34mCHANGED\033[00m\t%s\t%s\t%s\t\n", s.String())
 			}
 			w.Flush()
 		}
@@ -55,7 +64,12 @@ func (c *CheckoutCmd) Run(args []string) {
 	if *c.prune {
 		fmt.Printf("PRUNE mode\n")
 	}
-	_, err := workspace.Checkout(os.Stdout, *c.prune, *c.ffonly, *c.rebase)
+	ch := sbr.NewCheckouter(workspace, os.Stdout)
+	ch.SetPrune(*c.prune)
+	ch.SetFastForwardOnly(*c.ffonly)
+	ch.SetRebase(*c.rebase)
+
+	_, err = ch.Checkout()
 	if err != nil {
 		fmt.Printf("checkout error: %s", err.Error())
 		os.Exit(-1)

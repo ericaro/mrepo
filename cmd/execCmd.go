@@ -8,14 +8,15 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"text/tabwriter"
 
-	"github.com/ericaro/mrepo"
 	"github.com/ericaro/mrepo/git"
+	"github.com/ericaro/mrepo/sbr"
 )
 
 //this file contains function dealing with chan Execution (ie results of random command)
@@ -154,7 +155,7 @@ func (c *ExecCmd) Run(args []string) {
 		wd = FindRootCmd()
 	}
 	//build the workspace, that is used to trigger all commands
-	workspace := mrepo.NewWorkspace(wd)
+	workspace := sbr.NewWorkspace(wd)
 
 	//again, passing the stdin, and stdout to the subprocess prevent: async, and ability to collect the outputs
 	// for special outputers we need to collect outputs, so the 'special' var.
@@ -183,10 +184,10 @@ func (c *ExecCmd) Run(args []string) {
 
 //ExecConcurently, for each `subrepository` in the working dir, execute the command `command` with arguments `args`.
 // Each command is executed in non interactive mode (no access to stdin/stdout)
-func ExecConcurrently(x *mrepo.Workspace, command string, args ...string) <-chan Execution {
+func ExecConcurrently(x *sbr.Workspace, command string, args ...string) <-chan Execution {
 	executions := make(chan Execution)
 	var waiter sync.WaitGroup // to wait for all commands to return
-	for _, sub := range x.WorkingDirSubpath() {
+	for _, sub := range x.ScanRel() {
 		waiter.Add(1)
 
 		go func(sub string) {
@@ -197,7 +198,7 @@ func ExecConcurrently(x *mrepo.Workspace, command string, args ...string) <-chan
 			if err != nil {
 				return
 			}
-			rel := x.Relativize(sub)
+			rel := filepath.Join(x.Wd(), sub)
 			// keep
 			//head := fmt.Sprintf("\033[00;32m%s\033[00m$ %s %s\n", sub, command, strings.Join(args, " "))
 			//executions <- head + string(out)

@@ -7,7 +7,8 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/ericaro/mrepo"
+	"github.com/ericaro/mrepo/meld"
+	"github.com/ericaro/mrepo/sbr"
 )
 
 type DiffCmd struct {
@@ -22,22 +23,27 @@ func (d *DiffCmd) Flags(fs *flag.FlagSet) {
 func (d *DiffCmd) Run(args []string) {
 
 	// use wd by default
-	wd := FindRootCmd()
 	//creates a workspace to be able to read from/to sets
-	workspace := mrepo.NewWorkspace(wd)
+	workspace, err := sbr.FindWorkspace(os.Getwd())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, err.Error())
+		os.Exit(CodeNoWorkingDir)
+	}
 
 	if *d.meld {
 		//generate a temp file
-		current := workspace.WorkingDirSubrepositories()
+		current, err := workspace.Scan()
+		if err != nil {
+			exit(-1, "Cannot scan working dir: %v", err)
+		}
+
 		f, err := ioutil.TempFile("", "sbr")
 		if err != nil {
-			fmt.Printf("Cannot generate temp file: %s", err.Error())
-			os.Exit(-1)
-
+			exit(-1, "Cannot generate temp file: %v", err)
 		}
-		mrepo.WriteSbr(f, current)
+		sbr.WriteTo(f, current)
 		f.Close() //no defer to open it up just after.
-		err = mrepo.Meld(workspace.Wd(), ".sbr set  |  disk set", workspace.Sbrfile(), f.Name())
+		err = meld.Diff(workspace.Wd(), ".sbr set  |  disk set", workspace.Sbrfile(), f.Name())
 		if err != nil {
 			fmt.Printf("Meld returned with error: %s", err.Error())
 			os.Exit(-1)
@@ -47,16 +53,24 @@ func (d *DiffCmd) Run(args []string) {
 	}
 
 	//compute patches (to be made to the working dir)
-	current := workspace.FileSubrepositories()
-	dest := workspace.WorkingDirSubrepositories()
-	ins, del, upd := mrepo.Diff(current, dest)
+	current, err := workspace.Read()
+	if err != nil {
+		exit(-1, "Cannot read .sbr: %v", err)
+	}
+
+	dest, err := workspace.Scan()
+	if err != nil {
+		exit(-1, "Cannot scan working dir: %v", err)
+	}
+
+	ins, del, upd := sbr.Diff(current, dest)
 	//print them
 	if len(del)+len(ins)+len(upd) > 0 {
 
 		w := tabwriter.NewWriter(os.Stdout, 3, 8, 3, ' ', tabwriter.AlignRight)
 		fmt.Fprintf(w, "\033[00;31mOPS \033[00m\tpath\tremote\tbranch\t\n")
 		for _, s := range upd {
-			fmt.Fprintf(w, "\033[00;34mEDIT\033[00m\t%s\t%s\t%s\t\n", d.diffR(s.Rel(), s.XRel()), d.diffR(s.Remote(), s.XRemote()), d.diffR(s.Branch(), s.XBranch()))
+			fmt.Fprintf(w, "\033[00;34mEDIT\033[00m\t%s\t%s\t%s\t\n", d.diff(s.Old.Rel(), s.New.Rel()), d.diff(s.Old.Remote(), s.New.Remote()), d.diff(s.Old.Branch(), s.New.Branch()))
 		}
 		for _, s := range ins {
 			fmt.Fprintf(w, "\033[00;31mADD \033[00m\t%s\t%s\t%s\t\n", s.Rel(), s.Remote(), s.Branch())
@@ -80,18 +94,27 @@ func (d *DiffCmd) Run(args []string) {
 	//read ".sbr" content
 	//current := workspace.FileSubrepositories()
 
-	current.RemoveAll(del)
-	current.AddAll(ins)
-	current.UpdateAll(upd)
+	current, _ = sbr.RemoveAll(current, del...)
+	current = append(current, ins...)
+	_, err = sbr.UpdateAll(current, upd...)
+	if err != nil {
+		exit(-1, "Cannot Update: %v", err)
+	}
+
 	//always rewrite the file
-	WriteSbr(workspace, current)
+	f, err := os.Create(workspace.Sbrfile())
+	if err != nil {
+		exit(-1, "Error Cannot write dependency file: %v", err)
+	}
+	defer f.Close()
+	sbr.WriteTo(f, current)
 	fmt.Printf("Done (\033[00;32m%v\033[00m INS) (\033[00;32m%v\033[00m DEL) (\033[00;32m%v\033[00m UPD)\n", len(ins), len(del), len(upd))
 }
 
 //present reverse changes
-func (c *DiffCmd) diffR(src string, target *string) (res string) {
-	if target == nil {
+func (c *DiffCmd) diff(src string, target string) (res string) {
+	if target == src {
 		return src
 	}
-	return fmt.Sprintf("%s→%s", *target, src)
+	return fmt.Sprintf("%s→%s", src, target)
 }

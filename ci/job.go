@@ -10,9 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ericaro/mrepo"
 	"github.com/ericaro/mrepo/format"
 	"github.com/ericaro/mrepo/git"
+	"github.com/ericaro/mrepo/makefile"
+	"github.com/ericaro/mrepo/sbr"
 )
 
 //job is the main object in a ci. it represent a project to be build.
@@ -187,7 +188,7 @@ func (j *job) dobuild(w io.Writer) error {
 	fmt.Fprintf(w, "working dir: %s\n", wd)
 
 	fmt.Fprintf(w, "%s $ make ci\n", filepath.Join(wd, j.name))
-	return mrepo.Make(filepath.Join(wd, j.name), "ci", w)
+	return makefile.Run(filepath.Join(wd, j.name), "ci", w)
 }
 
 //dorefresh actually run the refresh command, it is unsafe to call it without caution. It should only update errcode, and result
@@ -213,8 +214,12 @@ func (j *job) dorefresh(w io.Writer) error {
 		}
 	}
 
-	wk := mrepo.NewWorkspace(filepath.Join(wd, j.name))
-	digest, err := wk.Checkout(w, true, true, false)
+	wk := sbr.NewWorkspace(filepath.Join(wd, j.name))
+	ch := sbr.NewCheckouter(wk, w)
+	ch.SetFastForwardOnly(true)
+	ch.SetPrune(true)
+
+	digest, err := ch.Checkout()
 	if err != nil {
 		return err
 	}

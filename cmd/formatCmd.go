@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"flag"
+	"fmt"
+	"os"
 
-	"github.com/ericaro/mrepo"
+	"github.com/ericaro/mrepo/sbr"
 )
 
 type FormatCmd struct {
@@ -16,13 +18,18 @@ func (c *FormatCmd) Flags(fs *flag.FlagSet) {
 
 func (c *FormatCmd) Run(args []string) {
 	// use wd by default
-	wd := FindRootCmd()
-	//creates a workspace to be able to read from/to sets
-	workspace := mrepo.NewWorkspace(wd)
-
-	current := workspace.FileSubrepositories()
-	if *c.legacy {
-		mrepo.LegacyFmt = true
+	workspace, err := sbr.FindWorkspace(os.Getwd())
+	if err != nil {
+		exit(CodeNoWorkingDir, "%v", err)
 	}
-	WriteSbr(workspace, current)
+
+	current, err := workspace.Read()
+
+	f, err := os.Create(workspace.Sbrfile())
+	if err != nil {
+		fmt.Printf("Error Cannot write dependency file: %s", err.Error())
+		os.Exit(-1)
+	}
+	defer f.Close()
+	sbr.WriteTo(f, current)
 }

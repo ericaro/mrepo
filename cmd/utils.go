@@ -9,13 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ericaro/mrepo"
 	"github.com/ericaro/mrepo/format"
 	"github.com/ericaro/mrepo/git"
 )
 
 func FindRootCmd() (dir string) {
-	wd, err := FindRoot()
+	wd, err := findRoot()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(CodeNoWorkingDir)
@@ -24,7 +23,7 @@ func FindRootCmd() (dir string) {
 }
 
 //FindRoot get the current working dir and search for a .sbr file upwards
-func FindRoot() (dir string, err error) {
+func findRoot() (dir string, err error) {
 	root, err := os.Getwd()
 	if err != nil {
 		log.Printf("getwd error %v", err)
@@ -32,7 +31,7 @@ func FindRoot() (dir string, err error) {
 	}
 	path := root
 	//loop until I've reached the root, or found the .sbr
-	for ; !FileExists(filepath.Join(path, ".sbr")) && path != "/"; path = filepath.Dir(path) {
+	for ; !fileExists(filepath.Join(path, ".sbr")) && path != "/"; path = filepath.Dir(path) {
 	}
 
 	if path != "/" {
@@ -43,7 +42,7 @@ func FindRoot() (dir string, err error) {
 }
 
 //FileExists check if a path exists
-func FileExists(path string) bool {
+func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return !os.IsNotExist(err)
 }
@@ -167,14 +166,8 @@ func GetCIConf(prj string) (server, jobname string) {
 	return server, jobname
 }
 
-//WriteSbr write down the workspace sbr. Print errors and exit on fail.
-// this is not an API!
-func WriteSbr(workspace *mrepo.Workspace, current mrepo.Subrepositories) {
-	f, err := os.Create(workspace.Sbrfile())
-	if err != nil {
-		fmt.Printf("Error Cannot write dependency file: %s", err.Error())
-		os.Exit(-1)
-	}
-	defer f.Close()
-	mrepo.WriteSbr(f, current)
+//exit with code and msg
+func exit(code int, msg string, a ...interface{}) {
+	fmt.Fprintf(os.Stderr, msg, a...)
+	os.Exit(code)
 }

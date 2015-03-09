@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ericaro/mrepo"
 	"github.com/ericaro/mrepo/cmd"
+	"github.com/ericaro/mrepo/sbr"
 )
 
 const (
@@ -65,7 +65,7 @@ func main() {
 		log.Fatalf("Error, cannot determine the current directory. %s\n", err.Error())
 	}
 	//build the workspace, that is used to trigger all commands
-	workspace := mrepo.NewWorkspace(wd)
+	workspace := sbr.NewWorkspace(wd)
 
 	// parses the remaining args in order to pass them to the underlying process
 	args := make([]string, 0)
@@ -78,7 +78,7 @@ func main() {
 		//for now there is only one way to print dependencies
 		//List just count and print all directories.
 		var count int
-		for _, prj := range workspace.WorkingDirSubpath() {
+		for _, prj := range workspace.ScanRel() {
 			count++
 			rel, err := filepath.Rel(wd, prj)
 			if err != nil {
@@ -128,12 +128,12 @@ func main() {
 
 //ExecSequentially, for each `subrepository` in the working dir, execute the  command `command` with arguments `args`.
 // It passes the stdin, stdout, and stderr to the subprocess. and wait for the result, before moving to the next one.
-func ExecSequentially(x *mrepo.Workspace, command string, args ...string) {
+func ExecSequentially(x *sbr.Workspace, command string, args ...string) {
 	var count int
 
-	for _, sub := range x.WorkingDirSubpath() {
+	for _, sub := range x.ScanRel() {
 		count++
-		rel := x.Relativize(sub)
+		rel := filepath.Join(x.Wd(), sub)
 		fmt.Printf("\033[00;32m%s\033[00m$ %s %s\n", rel, command, strings.Join(args, " "))
 		cmd := exec.Command(command, args...)
 		cmd.Dir = sub
