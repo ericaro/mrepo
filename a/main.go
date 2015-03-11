@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ericaro/mrepo/cmd"
-	"github.com/ericaro/mrepo/sbr"
+	"github.com/ericaro/sbr/cmd"
+	"github.com/ericaro/sbr/sbr"
 )
 
 const (
@@ -133,7 +133,12 @@ func ExecSequentially(x *sbr.Workspace, command string, args ...string) {
 
 	for _, sub := range x.ScanRel() {
 		count++
-		rel := filepath.Join(x.Wd(), sub)
+
+		rel, err := filepath.Rel(x.Wd(), sub)
+		if err != nil {
+			rel = sub // use absolute path
+		}
+		//log.Printf("%v, %v", sub, rel)
 		fmt.Printf("\033[00;32m%s\033[00m$ %s %s\n", rel, command, strings.Join(args, " "))
 		cmd := exec.Command(command, args...)
 		cmd.Dir = sub

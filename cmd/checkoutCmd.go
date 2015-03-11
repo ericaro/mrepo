@@ -6,7 +6,7 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/ericaro/mrepo/sbr"
+	"github.com/ericaro/sbr/sbr"
 )
 
 type CheckoutCmd struct {

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/ericaro/mrepo/git"
+	"github.com/ericaro/sbr/git"
 )
 
 //Checkouter holds all methods to change the workspace content

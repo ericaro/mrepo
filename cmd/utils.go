@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ericaro/mrepo/format"
-	"github.com/ericaro/mrepo/git"
+	"github.com/ericaro/sbr/format"
+	"github.com/ericaro/sbr/git"
 )
 
 func FindRootCmd() (dir string) {

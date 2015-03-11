@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/ericaro/mrepo/format"
+	"github.com/ericaro/sbr/format"
 	"github.com/golang/protobuf/proto"
 )
 

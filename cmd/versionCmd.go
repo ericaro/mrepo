@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ericaro/mrepo/sbr"
+	"github.com/ericaro/sbr/sbr"
 )
 
 type VersionCmd struct{}

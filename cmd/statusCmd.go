@@ -9,8 +9,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/ericaro/mrepo/git"
-	"github.com/ericaro/mrepo/sbr"
+	"github.com/ericaro/sbr/git"
+	"github.com/ericaro/sbr/sbr"
 )
 
 type StatusCmd struct{}

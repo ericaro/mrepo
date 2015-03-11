@@ -4,7 +4,7 @@ import (
 	"errors"
 	"log"
 
-	"github.com/ericaro/mrepo/format"
+	"github.com/ericaro/sbr/format"
 )
 
 var (

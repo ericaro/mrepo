@@ -10,10 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ericaro/mrepo/format"
-	"github.com/ericaro/mrepo/git"
-	"github.com/ericaro/mrepo/makefile"
-	"github.com/ericaro/mrepo/sbr"
+	"github.com/ericaro/sbr/format"
+	"github.com/ericaro/sbr/git"
+	"github.com/ericaro/sbr/makefile"
+	"github.com/ericaro/sbr/sbr"
 )
 
 //job is the main object in a ci. it represent a project to be build.

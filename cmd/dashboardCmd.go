@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/ericaro/mrepo/dashboard"
-	"github.com/ericaro/mrepo/git"
+	"github.com/ericaro/sbr/dashboard"
+	"github.com/ericaro/sbr/git"
 )
 
 type DashboardCmd struct {

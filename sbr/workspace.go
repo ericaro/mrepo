@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ericaro/mrepo/git"
+	"github.com/ericaro/sbr/git"
 )
 
 const (

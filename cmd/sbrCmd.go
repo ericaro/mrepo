@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/ericaro/mrepo/format"
+	"github.com/ericaro/sbr/format"
 
 	"github.com/ericaro/command"
 	"github.com/ericaro/help"

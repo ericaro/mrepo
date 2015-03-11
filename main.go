@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/ericaro/command"
-	"github.com/ericaro/mrepo/cmd"
+	"github.com/ericaro/sbr/cmd"
 )
 
 func main() {

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ericaro/mrepo/format"
+	"github.com/ericaro/sbr/format"
 )
 
 //execution is a tool to run any execution (refresh or build), and keep: information about it.

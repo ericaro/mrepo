@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/ericaro/mrepo/format"
+	"github.com/ericaro/sbr/format"
 )
 
 type CilogCmd struct {

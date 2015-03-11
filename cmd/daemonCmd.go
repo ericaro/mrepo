@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/ericaro/mrepo/ci"
+	"github.com/ericaro/sbr/ci"
 )
 
 type DaemonCmd struct {

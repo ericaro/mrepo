@@ -15,8 +15,8 @@ import (
 	"sync"
 	"text/tabwriter"
 
-	"github.com/ericaro/mrepo/git"
-	"github.com/ericaro/mrepo/sbr"
+	"github.com/ericaro/sbr/git"
+	"github.com/ericaro/sbr/sbr"
 )
 
 //this file contains function dealing with chan Execution (ie results of random command)

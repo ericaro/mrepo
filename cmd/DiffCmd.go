@@ -7,8 +7,8 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/ericaro/mrepo/meld"
-	"github.com/ericaro/mrepo/sbr"
+	"github.com/ericaro/sbr/meld"
+	"github.com/ericaro/sbr/sbr"
 )
 
 type DiffCmd struct {

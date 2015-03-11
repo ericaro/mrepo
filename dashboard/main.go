@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/ericaro/mrepo/format"
+	"github.com/ericaro/sbr/format"
 )
 
 func (d *Dashboard) ServeHTTP(w http.ResponseWriter, r *http.Request) {

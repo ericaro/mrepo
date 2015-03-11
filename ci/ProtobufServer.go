@@ -3,7 +3,7 @@ package ci
 import (
 	"net/http"
 
-	"github.com/ericaro/mrepo/format"
+	"github.com/ericaro/sbr/format"
 )
 
 //ProtobufServer is an independent http server that just exposes an http protobuf protocol
