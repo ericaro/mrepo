@@ -22,8 +22,6 @@ Sync are triggered by git hosting POST hooks.
 
 
 
-
-
 Then sbr offers a few utilities:
 
 **sbr version** will compute the sha1 of all sha1 (self, and each subrepository), this sbr-version can be used to identify the project version.
@@ -66,15 +64,16 @@ sbr is available under the [Apache License, Version 2.0](http://www.apache.org/l
 
 master: [![Build Status](https://travis-ci.org/ericaro/sbr.png?branch=master)](https://travis-ci.org/ericaro/sbr) against go versions:
 
-  - 1.1
   - 1.2
   - 1.3
+  - 1.4
   - tip
 
-dev: [![Build Status](https://travis-ci.org/ericaro/sbr.png?branch=dev)](https://travis-ci.org/ericaro/dev) against go versions:
+dev: [![Build Status](https://travis-ci.org/ericaro/sbr.png?branch=dev)](https://travis-ci.org/ericaro/sbr) against go versions:
 
   - 1.2
   - 1.3
+  - 1.4
   - tip
 
 
