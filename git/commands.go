@@ -101,6 +101,19 @@ func RemoteOrigin(prj string) (origin string, err error) {
 	return ConfigGet(prj, "remote.origin.url")
 }
 
+func Upstream(prj string) (result string, err error) {
+	//git rev-parse --abbrev-ref --symbolic-full-name @{upstream}
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}")
+	cmd.Dir = prj
+	out, err := cmd.CombinedOutput()
+	result = strings.Trim(string(out), DefaultTrimCut)
+	if err != nil {
+		return result, fmt.Errorf("failed to: %s$ git rev-parse --abbrev-ref --symbolic-full-name @{upstream}: %s %s", prj, err.Error(), string(out))
+	}
+	return result, nil
+
+}
+
 //RemoteSetOrigin set the current origin remote
 func RemoteSetOrigin(prj, remote string) (err error) {
 	cmd := exec.Command("git", "remote", "set-url", remote)
@@ -125,8 +138,8 @@ func RevParseHead(prj string) (result string, err error) {
 }
 
 //RevParseHead read the current commit sha1
-func RevListCountHead(prj, branch string) (left, right int, err error) {
-	cmd := exec.Command("git", "rev-list", "--count", "--left-right", "HEAD..."+branch)
+func RevListCountHead(prj string) (left, right int, err error) {
+	cmd := exec.Command("git", "rev-list", "--count", "--left-right", "HEAD...@{u}")
 	cmd.Dir = prj
 	out, err := cmd.CombinedOutput()
 	result := strings.Trim(string(out), DefaultTrimCut)

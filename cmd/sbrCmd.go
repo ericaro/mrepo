@@ -22,7 +22,7 @@ func NewSbrCmd() SbrCmd {
 
 	// utils
 	c.On("x", "<command> <args>", "exec arbitrary command on each subrepository", &ExecCmd{})
-	c.On("status", "[revision]", "count commits between HEAD and 'revision'", &StatusCmd{})
+	c.On("status", "", "count commits between HEAD and 'upstream'", &StatusCmd{})
 	c.On("format", " ", "rewrite current '.sbr' into a cannonical format", &FormatCmd{})
 
 	// CI subcommands

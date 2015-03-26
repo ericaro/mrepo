@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,15 +14,16 @@ import (
 	"github.com/ericaro/sbr/sbr"
 )
 
-type StatusCmd struct{}
+type StatusCmd struct {
+	short *bool
+}
 
+func (c *StatusCmd) Flags(fs *flag.FlagSet) {
+	c.short = fs.Bool("s", false, "print only repo that have differences")
+}
 func (c *StatusCmd) Run(args []string) {
 
 	//get the revision to compare to (defaulted to origin/master)
-	branch := "origin/master"
-	if len(args) == 1 {
-		branch = args[0]
-	}
 
 	//creates a workspace to be able to read from/to sets
 	workspace, err := sbr.FindWorkspace(os.Getwd())
@@ -50,7 +52,8 @@ func (c *StatusCmd) Run(args []string) {
 	for _, x := range all {
 
 		// the real deal
-		left, right, giterr := git.RevListCountHead(x, branch)
+
+		left, right, giterr := git.RevListCountHead(x)
 		tLeft += left
 		tRight += right
 
@@ -77,8 +80,12 @@ func (c *StatusCmd) Run(args []string) {
 			errmess = strings.Replace(giterr.Error(), "\n", "; ", -1)
 		}
 
-		//and print
-		fmt.Fprintf(w, "%s\t%s\t%s\t%v\n", l, r, rel, errmess)
+		//equals if there is not changes
+		equals := left == 0 && right == 0
+		if !*c.short || !equals { // print only if required
+			//and print
+			fmt.Fprintf(w, "%s\t%s\t%s\t%v\n", l, r, rel, errmess)
+		}
 	}
 
 	fmt.Fprintf(w, "\n")
