@@ -16,6 +16,7 @@ func NewSbrCmd() SbrCmd {
 	c := SbrCmd{command.New()}
 	c.On("clone", "<remote> [path]", "clone a remote repository, and then checkout it's .sbr", &CloneCmd{})
 	c.On("checkout", "", "pull top; clone new dependencies; pull all other dependencies (deprecated dependencies can be pruned using -f option)", &CheckoutCmd{})
+	c.On("fetch", "", "fetch all current subrepositories", &FetchCmd{})
 	c.On("version", "", "compute the sha1 of all dependencies' sha1", &VersionCmd{})
 	//these are edits
 	c.On("diff", "", "list subrepositories to be added to or removed from '.sbr'", &DiffCmd{})

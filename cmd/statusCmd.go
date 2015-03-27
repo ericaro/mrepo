@@ -31,9 +31,8 @@ func (c *StatusCmd) Run(args []string) {
 		exit(-1, "%v", err)
 	}
 
-	all := make([]string, 0, 100)
 	//get all path, and sort them in alpha order
-	all = workspace.ScanRel()
+	all := workspace.ScanRel()
 
 	//little trick to keep project sorted.
 	// this is only possible when I execute sync commands.
