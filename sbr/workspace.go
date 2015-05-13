@@ -61,12 +61,17 @@ func (x *Workspace) Wd() string { return x.wd }
 //Read returns the []Sub, as declared in the .sbr file
 func (x *Workspace) Read() (sbrs []Sub, err error) {
 
+	branch, err := git.Branch(x.wd)
+	if err != nil {
+		branch = "master" // default
+	}
+
 	file, err := os.Open(x.Sbrfile())
 	if err != nil {
 		return
 	}
 	defer file.Close()
-	return ReadFrom(file) // for now, just parse
+	return ReadFromBranch(branch, file) // for now, just parse
 }
 
 //Scan the working dir and return subrepositories found

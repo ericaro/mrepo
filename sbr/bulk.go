@@ -102,7 +102,12 @@ func Diff(src, dest []Sub) (insertion, deletion []Sub, update []Delta) {
 }
 
 //ReadFrom read subrepository definitions fom reader
-func ReadFrom(r io.Reader) (sbr []Sub, err error) {
+//
+// the initial currentBranch is 'master'
+func ReadFrom(r io.Reader) (sbr []Sub, err error) { return ReadFromBranch("master", r) }
+
+//ReadFromBranch read subrepository definitions from reader
+func ReadFromBranch(currentBranch string, r io.Reader) (sbr []Sub, err error) {
 
 	w := csv.NewReader(r)
 	w.Comma = ' '
@@ -115,7 +120,7 @@ func ReadFrom(r io.Reader) (sbr []Sub, err error) {
 	}
 	sbr = make([]Sub, 0, len(records)) // not the real size but a good approx of the "size"
 
-	currentBranch := "master"
+	//currentBranch := "master"
 	for i, record := range records {
 		switch len(record) {
 		case 1:
