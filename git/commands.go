@@ -160,3 +160,21 @@ func RevListCountHead(prj string) (left, right int, err error) {
 	}
 	return left, right, nil
 }
+
+//git status --porcelain | wc -l
+func StatusWCL(prj string) (changes int, err error) {
+	cmd := exec.Command("git", "status", "--porcelain")
+	cmd.Dir = prj
+	out, err := cmd.CombinedOutput()
+	result := strings.Trim(string(out), DefaultTrimCut)
+	if err != nil {
+		return 0, fmt.Errorf("execution error: %s$ git %s -> error %v: %s", prj, strings.Join(cmd.Args, " "), err, result)
+	}
+	split := strings.Split(result, "\n")
+	if len(split) == 1 && split[0] == "" {
+		return 0, nil
+	} else {
+		return len(split), nil
+	}
+
+}

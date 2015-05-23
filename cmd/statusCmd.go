@@ -46,7 +46,7 @@ func (c *StatusCmd) Run(args []string) {
 	w := tabwriter.NewWriter(os.Stdout, 4, 8, 2, ' ', 0)
 
 	//we are going to print a gran total
-	var tLeft, tRight int
+	var tW, tLeft, tRight int
 
 	for _, x := range all {
 
@@ -55,6 +55,8 @@ func (c *StatusCmd) Run(args []string) {
 		left, right, giterr := git.RevListCountHead(x)
 		tLeft += left
 		tRight += right
+		wd, werr := git.StatusWCL(x)
+		tW += wd
 
 		//computes the relative path (prettier to print)
 		rel, err := filepath.Rel(workspace.Wd(), x)
@@ -65,6 +67,7 @@ func (c *StatusCmd) Run(args []string) {
 		//compute the left,right  string
 		l := strconv.FormatInt(int64(left), 10)  //Defualt
 		r := strconv.FormatInt(int64(right), 10) //default
+		iw := strconv.FormatInt(int64(wd), 10)   //default
 		//pretty print 0 as -
 		if left == 0 {
 			l = "-"
@@ -72,23 +75,31 @@ func (c *StatusCmd) Run(args []string) {
 		if right == 0 {
 			r = "-"
 		}
+		if wd == 0 {
+			iw = "-"
+		}
+
 		errmess := ""
+		if werr != nil { //pretty print err as ?
+			iw = "?"
+			errmess += strings.Replace(werr.Error(), "\n", "; ", -1)
+		}
 		if giterr != nil { //pretty print err as ?
 			l = "?"
 			r = "?"
-			errmess = strings.Replace(giterr.Error(), "\n", "; ", -1)
+			errmess += strings.Replace(giterr.Error(), "\n", "; ", -1)
 		}
 
 		//equals if there is not changes
-		equals := left == 0 && right == 0
+		equals := left == 0 && right == 0 && wd == 0
 		if !*c.short || !equals { // print only if required
 			//and print
-			fmt.Fprintf(w, "%s\t%s\t%s\t%v\n", l, r, rel, errmess)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%v\n", iw, l, r, rel, errmess)
 		}
 	}
 
 	fmt.Fprintf(w, "\n")
-	fmt.Fprintf(w, "%v\t%v\t%s\t \n", tLeft, tRight, "Total")
+	fmt.Fprintf(w, "%v\t%v\t%v\t%s\t \n", tW, tLeft, tRight, "Total")
 	w.Flush()
 	fmt.Println()
 }
