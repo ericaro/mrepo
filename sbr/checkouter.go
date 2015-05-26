@@ -212,11 +212,12 @@ func (ch *Checkouter) locate(rel string) string {
 //Prune a Sub
 func (ch *Checkouter) Prune(d Sub) (err error) {
 	path := ch.locate(d.rel)
-	_, err = os.Stat(path)
-	if os.IsNotExist(err) { // it does not exists
-		return nil
-	}
-	return os.RemoveAll(filepath.Join(ch.wk.Wd(), d.rel))
+	// _, err = os.Stat(path)
+	// if os.IsNotExist(err) { // it does not exist
+	// 	log.Printf("%s does not exists", d.rel)
+	// 	return nil
+	// }
+	return os.RemoveAll(path)
 }
 
 //Update a repository according to changes described in delta

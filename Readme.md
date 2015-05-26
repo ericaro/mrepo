@@ -1,16 +1,81 @@
 [![Build Status](https://travis-ci.org/ericaro/sbr.png?branch=master)](https://travis-ci.org/ericaro/sbr)
 
-sbr is a command line tool to manage a git repository as a workspace of other git subrepositories ('sbr' for short).
+`sbr` is a command line tool to solve the problem of:
 
-Each subrepository goes into a dedicated subdirectory, pointing at a branch, so you can edit, commit, push and pull them. They are plain git repositories.
+  - sharing workspace between teammates
+  - reproducible builds
 
-Subrepositories are composed from an 'sbr' definition made of three simple attributes:
+A **workspace** is a top **git** repository that contains other git *subrepositories* ('sbr' for short).
 
- - **rel**: subdirectory path
- - **remote**: git remote URL
- - **branch**: git branch
+The **workspace** layout is described in a `.sbr` files in its root.
 
-All sbr definitions are collected into a '.sbr' file.
+    <relative path1> <remote url1>
+    <relative path2> <remote url2>
+
+`sbr checkout` will clone all the missing subrepository.
+
+# Sharing workspace between teammates
+
+A **workspace** is a plain git repo, you can have it on any git hosting server to share.
+
+    sbr clone <remoteURL>
+
+Is enough to clone the workspace, and to checkout all subrepositories.
+
+*tip* : you would probably want to add the subrepositories to the `.gitignore` file, or better checkout all subrepositories to `src` and add `src/` to `.gitignore`
+
+# reproducible workspace
+
+The goal of having a reproducible workspace is not to be able to reproduce every single possible configuration, but to reproduce the one you want, 'branches' and 'tags'.
+
+## branching
+
+By default, `sbr` follows branches. All workspaces are at the 'head' of their branch.
+Just like with git, there is a 'version' to identify this state
+
+`sbr version` will compute the sha1 of all subrepositories sha1. providing a unique version number. You can check that you, and your teammate share the same workspace version.
+
+You can have several workspace branch. For instance a 'master' branch where every sub-repository is in the 'master' branch. etc. But you can be more picky, and have all sub-repository in the 'master' branch but `src/github.com/mine/a`.
+
+
+## tagging
+
+In git, to freeze a revision you just 'tag' it. Nothing new here, just tag every sub-repository.
+
+You have a fully reproducible workspace.
+
+Usually, use the same tag name, that contains the product name, and the version, so the sub-repository module or library is annotated with the top product (or integration project) versions. You will be able to compare which library revision is present in which product version. That's a huge benefit.
+
+
+## comparing with git-submodule
+
+As *git-submodule* has a `.gitmodules`, 'sbr' has a `.sbr` file, describing the layout of this workspace.
+
+*Git-submodule* checkouts modules right to a specific commit, in *headless* mode. It is very suitable to depend on another module, but not really to collaborate on it. 
+
+*sbr* checkouts subrepositories to a specific **branch**, or **tag**. Subrepositories are plain repositories ready for collaboration.
+
+*Git-submodule* manages version top/down: the top sha1 enforces the sha1 for each *module*. This is handy to checkout a workspace at a given point in time. But this is too restrictive to do collaborate with each other (which branch? how can I edit a submodule? )
+
+*sbr* computes the top version ( `sbr version` ) from subrepositories versions (sha1 of all sha1). You don't always "control" the workspace version, you compute it. This is exactly like 'go get'. It is better for *continuous integration*, and it is the only viable solution to the dependency hell.
+
+
+## What is reproductible ?
+
+Everybody in the team can checkout the current *head* of each repository, checkouting new one, and pruning old ones., you can compute the workspace version, and compare with each other.
+
+Everybody works on the "head" of their branch.
+
+When you want to mark a version as *important* you would `git tag` every repositories with the same "tag" ( containing, for instance the product name, and probably a changelog). Then you'll have a huge benefit to be able to track, on each repository, the commits that were used
+
+
+
+A big benefit of a computed version, is that, to get control over it, you would have a "production" branch, or "release" tag on each subrepository, related to the "workspace" using it.
+For instance, all the subrepositories I use, have the tag "sbr-1.0" and "sbr-1.1" used to have a fully reproductible sbr 1.0 version.
+
+
+
+
 
 # Benefits
 
